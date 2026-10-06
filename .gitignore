@@ -52,3 +52,7 @@ coverage/
 # Zip archives
 fluid.zip
 
+# Temp reference files
+youtube_links.txt
+
+

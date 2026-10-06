@@ -3,27 +3,29 @@
 ## 🎯 Completed Objectives
 
 ### 1. Database & Supabase Auth Migration
-- **Supabase Postgres Integration**: Successfully pushed Prisma schema to Supabase Postgres instance via transaction and session poolers.
-- **Supabase Auth**: Replaced shared password + JWT auth with Supabase Auth users, enforcing `app_metadata.role === 'admin'`.
-- **Server/Browser Clients & Middleware**: Implemented `@supabase/ssr` browser and server clients, and added `src/middleware.ts` to protect `/admin` and `/api/admin/*` routes.
-- **Admin User Seeding**: Updated `scripts/seed-admin.ts` to seed users into Supabase Auth with admin role metadata.
+- **Supabase Postgres Integration**: Schema pushed and verified on Supabase Postgres.
+- **Supabase Auth System**: Fully migrated from shared password + JWT to Supabase Auth (`@supabase/ssr`), enforcing `app_metadata.role === 'admin'`.
+- **Route Protection**: Created `src/middleware.ts` to protect `/admin` and `/api/admin/*` routes.
+- **Admin Seeding**: Updated `scripts/seed-admin.ts` to create/update admin accounts directly in Supabase Auth.
 
-### 2. Cloud Media Upload Architecture
-- **Direct Storage Uploads**: Created `/api/admin/upload-url` route for signed direct-to-storage browser uploads to Supabase Storage, bypassing Vercel body limits.
-- **Local Asset Migration Tool**: Built `scripts/upload-local-media.ts` to migrate legacy `public/audio` and `public/gallery` assets to cloud storage.
-- **Next.js Config**: Configured `images.remotePatterns` to support `*.supabase.co` and `*.supabase.in`.
+### 2. Cloud Media Upload & Storage Architecture
+- **Signed Upload URL API**: Added `/api/admin/upload-url` route for direct browser-to-Supabase-Storage uploads.
+- **Remote Patterns**: Added `*.supabase.co` and `*.supabase.in` to `next.config.mjs`.
 
-### 3. Repository & Deployment Synchronization
-- **Cleanup**: Purged legacy `src/api` tree, removed unneeded auth packages (`bcryptjs`, `jsonwebtoken`), and updated repository URLs in `package.json` to `https://github.com/omnivoid-dev/omnivoid.git`.
-- **CI/CD Deployment**: Committed and pushed latest codebase to GitHub `master` branch; Vercel deployment synced.
+### 3. Legacy Content Ingestion & YouTube Auto-Categorization
+- **Document & PDF Ingestion**: Migrated `CONUNDRUM`, `CONTACT`, 10 research text papers, and 9 PDF research papers (*Noise as a Spectre in Dub Techno.pdf*, *Sonic Warfare*, etc.) into Supabase Storage & DB.
+- **Gallery Assets**: Uploaded legacy gallery images into Supabase Storage `media` bucket under `gallery/`.
+- **YouTube oEmbed Integration**: Created `scripts/fetch-youtube-editions.ts` which queried YouTube's oEmbed API for all 25 transmission/lab videos.
+- **Edition Mappings**: Automatically created and linked `Edition 001`, `Edition 002`, `Edition 003`, `Edition 005`, `Edition 007`, and `Edition 008` database records to their respective videos.
+
+### 4. Repository & CI/CD Synchronization
+- **Git Push**: All local changes committed and pushed to GitHub `omnivoid-dev/omnivoid.git` (`master` branch).
+- **Package Cleanup**: Removed dead `src/api` tree and uninstalled legacy dependencies (`bcryptjs`, `jsonwebtoken`). Verified zero TypeScript errors (`npx tsc --noEmit`).
 
 ---
 
-## 🚀 Active Objective: Legacy Site Content Ingestion
-
-Ingesting content from legacy project path: `K:\H DRIVE\Quantum Climb\APPS\OMNIVOID\LABSNEW`
-
-- [ ] **Editions & Gigs**: Extract edition structures, dates, venue info, and lineups.
-- [ ] **YouTube & Mixcloud Links**: Extract transmission URLs and media links for Labs & Radio.
-- [ ] **Documents & Text**: Ingest Conundrum, Contact, and text resources into `Document` database records.
-- [ ] **Research Papers & Gallery**: Collect PDFs, research assets, and gallery images for Supabase Storage.
+## 📈 System Summary
+* **Active Database**: Supabase Postgres (7 tables: Edition, Resource, Gig, Link, Document, SiteSettings, etc.)
+* **Auth**: Supabase Auth (`@supabase/ssr`)
+* **Storage**: Supabase Storage (`media` bucket: `docs/`, `gallery/`, `audio/`)
+* **Editions Mapped**: 6 active editions (`Edition 001` through `Edition 008`)
