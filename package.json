@@ -22,12 +22,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/QuantumClimb/omnivoid.git"
+    "url": "https://github.com/omnivoid-dev/omnivoid.git"
   },
   "author": {
-    "name": "QuantumClimb",
-    "email": "qc@quantum-climb.com",
-    "url": "https://github.com/QuantumClimb"
+    "name": "OMNIVOID",
+    "url": "https://github.com/omnivoid-dev"
   },
   "license": "MIT",
   "keywords": [
@@ -39,9 +38,9 @@
     "mobile-first",
     "omnivoid"
   ],
-  "homepage": "https://github.com/QuantumClimb/omnivoid#readme",
+  "homepage": "https://github.com/omnivoid-dev/omnivoid#readme",
   "bugs": {
-    "url": "https://github.com/QuantumClimb/omnivoid/issues"
+    "url": "https://github.com/omnivoid-dev/omnivoid/issues"
   },
   "engines": {
     "node": "22.x"
@@ -53,15 +52,15 @@
   ],
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.2",
     "@types/node": "^25.6.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "axios": "^1.11.0",
-    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "framer-motion": "^12.38.0",
-    "jsonwebtoken": "^9.0.3",
     "next": "^14.2.0",
     "prisma": "^5.22.0",
     "react": "^18.3.1",
@@ -69,8 +68,6 @@
     "typescript": "^6.0.3"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/jsonwebtoken": "^9.0.10",
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.13",
     "tailwindcss": "^3.4.19",

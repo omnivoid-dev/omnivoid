@@ -220,18 +220,6 @@ enum DocumentType {
 }
 
 // ============================================
-// ADMIN USER - Simple authentication
-// ============================================
-model AdminUser {
-  id        String   @id @default(cuid())
-  email     String   @unique // Admin email/username
-  password  String   // Bcrypt hash
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// ============================================
 // SITE SETTINGS - Global configuration
 // ============================================
 model SiteSettings {

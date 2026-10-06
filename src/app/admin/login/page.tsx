@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { createClient } from '@/lib/supabase/client';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -17,24 +18,25 @@ export default function AdminLogin() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      const supabase = createClient();
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        // Store token in localStorage
-        localStorage.setItem('adminToken', data.token);
-        // Redirect to admin dashboard
-        router.push('/admin/dashboard');
-      } else {
-        setError(data.error || 'Login failed');
+      if (authError) {
+        setError(authError.message || 'Login failed');
+        return;
       }
+
+      if (data.user?.app_metadata?.role !== 'admin') {
+        await supabase.auth.signOut();
+        setError('Access denied: Admin permissions required.');
+        return;
+      }
+
+      router.push('/admin/dashboard');
+      router.refresh();
     } catch (err) {
       setError('An error occurred. Please try again.');
     } finally {
@@ -73,7 +75,7 @@ export default function AdminLogin() {
         >
           <form onSubmit={handleSubmit}>
             {error && (
-              <div className="mb-4 p-3 bg-red-900/20 border border-red-900 rounded text-red-400 text-sm">
+              <div className="mb-4 p-3 bg-red-900/20 border border-red-900 rounded text-red-400 text-sm font-mono">
                 {error}
               </div>
             )}
@@ -118,7 +120,7 @@ export default function AdminLogin() {
 
         {/* Footer */}
         <div className="text-center mt-6 text-[#666666] text-xs font-mono">
-          <p>© 2025 OMNIVOID LABS</p>
+          <p>© 2026 OMNIVOID LABS</p>
           <p className="mt-1">Powered by Quantum Climb</p>
         </div>
       </motion.div>

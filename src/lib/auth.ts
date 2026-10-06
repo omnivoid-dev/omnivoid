@@ -1,124 +1,56 @@
 /**
- * OMNIVOID LABS - Authentication Utilities
- * 
- * Provides password hashing, verification, and JWT token management
- * for the admin authentication system.
+ * OMNIVOID LABS - Supabase Authentication Utilities
  */
 
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
-/**
- * Hash a plain text password using bcrypt
- * @param password - The plain text password to hash
- * @returns The hashed password
- */
-export async function hashPassword(password: string): Promise<string> {
-  const saltRounds = 12;
-  return bcrypt.hash(password, saltRounds);
+export interface VerifyAdminResult {
+  success: boolean;
+  userId?: string;
+  user?: any;
+  error?: string;
 }
 
 /**
- * Verify a password against a hashed password
- * @param password - The plain text password to verify
- * @param hashedPassword - The hashed password to compare against
- * @returns True if the passwords match, false otherwise
+ * Verify admin user session from request (cookies or Authorization header)
+ * Checks for a valid user and that user.app_metadata.role === 'admin'
  */
-export async function verifyPassword(
-  password: string,
-  hashedPassword: string
-): Promise<boolean> {
-  return bcrypt.compare(password, hashedPassword);
-}
-
-/**
- * Generate a JWT token for an authenticated user
- * @param userId - The user ID to encode in the token
- * @returns The signed JWT token
- */
-export function generateToken(userId: string): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET environment variable is not set');
-  }
-  
-  return jwt.sign(
-    { userId, type: 'admin' },
-    secret,
-    { expiresIn: '7d' }
-  );
-}
-
-/**
- * Verify and decode a JWT token
- * @param token - The JWT token to verify
- * @returns The decoded token payload if valid, null otherwise
- */
-export function verifyToken(token: string): { userId: string; type: string } | null {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    return null;
-  }
-  
+export async function verifyAdminToken(request?: Request): Promise<VerifyAdminResult> {
   try {
-    const decoded = jwt.verify(token, secret) as { userId: string; type: string };
-    return decoded;
-  } catch (error) {
-    return null;
-  }
-}
+    // 1. Check Authorization Bearer token header if present
+    const authHeader = request?.headers.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const adminClient = createAdminClient();
+      const { data: { user }, error } = await adminClient.auth.getUser(token);
 
-/**
- * Extract and verify token from Authorization header
- * @param authHeader - The Authorization header value
- * @returns The decoded token payload if valid, null otherwise
- */
-export function getTokenFromHeader(authHeader: string | undefined | null): { userId: string; type: string } | null {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-  
-  const token = authHeader.substring(7);
-  return verifyToken(token);
-}
+      if (error || !user) {
+        return { success: false, error: 'Invalid authentication token' };
+      }
 
-/**
- * Middleware-style function to check authentication
- * Returns a function that can be used to wrap API handlers
- */
-export function requireAuth(
-  handler: (userId: string, request: Request) => Promise<Response>
-) {
-  return async (request: Request): Promise<Response> => {
-    const authHeader = request.headers.get('Authorization');
-    const tokenData = getTokenFromHeader(authHeader);
-    
-    if (!tokenData) {
-      return Response.json(
-        { success: false, error: 'UNAUTHORIZED', message: 'Invalid or missing authentication token' },
-        { status: 401 }
-      );
+      if (user.app_metadata?.role !== 'admin') {
+        return { success: false, error: 'Forbidden: Admin role required' };
+      }
+
+      return { success: true, userId: user.id, user };
     }
-    
-    return handler(tokenData.userId, request);
-  };
-}
 
-/**
- * Verify admin token from request and return success/error response
- * Compatible with Next.js NextRequest
- */
-export async function verifyAdminToken(request: Request): Promise<{ success: boolean; userId?: string; error?: string }> {
-  const authHeader = request.headers.get('Authorization');
-  const tokenData = getTokenFromHeader(authHeader);
-  
-  if (!tokenData) {
-    return { success: false, error: 'Invalid or missing authentication token' };
+    // 2. Check session via cookies using server client
+    const supabase = await createServerSupabaseClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error || !user) {
+      return { success: false, error: 'Unauthorized: Session missing or invalid' };
+    }
+
+    if (user.app_metadata?.role !== 'admin') {
+      return { success: false, error: 'Forbidden: Admin role required' };
+    }
+
+    return { success: true, userId: user.id, user };
+  } catch (error: any) {
+    console.error('Error verifying admin auth:', error);
+    return { success: false, error: 'Authentication check failed' };
   }
-  
-  if (tokenData.type !== 'admin') {
-    return { success: false, error: 'Admin access required' };
-  }
-  
-  return { success: true, userId: tokenData.userId };
 }

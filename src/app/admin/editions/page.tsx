@@ -41,7 +41,6 @@ export default function EditionsPage() {
 
   const handleSubmit = async (formData: any) => {
     setIsSaving(true);
-    const token = localStorage.getItem('adminToken');
     const method = editingItem ? 'PUT' : 'POST';
     const url = editingItem ? `/api/admin/editions/${editingItem.id}` : '/api/admin/editions';
 
@@ -50,7 +49,6 @@ export default function EditionsPage() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(formData),
       });
@@ -70,11 +68,9 @@ export default function EditionsPage() {
   const handleDelete = async (item: Edition) => {
     if (!confirm(`Are you sure you want to delete "${item.name}"? This will affect all associated gigs and resources.`)) return;
 
-    const token = localStorage.getItem('adminToken');
     try {
       const res = await fetch(`/api/admin/editions/${item.id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.success) fetchEditions();

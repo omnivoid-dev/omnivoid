@@ -49,7 +49,6 @@ export default function LinksPage() {
 
   const handleSubmit = async (formData: any) => {
     setIsSaving(true);
-    const token = localStorage.getItem('adminToken');
     const method = editingItem ? 'PUT' : 'POST';
     const url = editingItem ? `/api/admin/links/${editingItem.id}` : '/api/admin/links';
 
@@ -58,7 +57,6 @@ export default function LinksPage() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(formData),
       });
@@ -78,11 +76,9 @@ export default function LinksPage() {
   const handleDelete = async (item: Link) => {
     if (!confirm(`Are you sure you want to delete "${item.title}"?`)) return;
 
-    const token = localStorage.getItem('adminToken');
     try {
       const res = await fetch(`/api/admin/links/${item.id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.success) fetchLinks();

@@ -44,7 +44,6 @@ export default function SettingsPage() {
 
   const handleSave = async (formData: any) => {
     setIsSaving(true);
-    const token = localStorage.getItem('adminToken');
 
     try {
       // Save each setting (for now simple loop, or we could bulk update)
@@ -53,7 +52,6 @@ export default function SettingsPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({ key, value }),
         })

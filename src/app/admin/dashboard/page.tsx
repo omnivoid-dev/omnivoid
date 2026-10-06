@@ -18,15 +18,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const token = localStorage.getItem('adminToken');
-      const headers = { Authorization: `Bearer ${token}` };
-
       try {
         const [gRes, lRes, dRes, eRes] = await Promise.all([
-          fetch('/api/admin/gigs', { headers }),
-          fetch('/api/admin/links', { headers }),
-          fetch('/api/admin/documents', { headers }),
-          fetch('/api/admin/editions', { headers }),
+          fetch('/api/admin/gigs'),
+          fetch('/api/admin/links'),
+          fetch('/api/admin/documents'),
+          fetch('/api/admin/editions'),
         ]);
 
         const [g, l, d, e] = await Promise.all([

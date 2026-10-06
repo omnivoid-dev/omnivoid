@@ -24,7 +24,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { label: 'Settings', href: '/admin/settings', icon: '⚙️' },
   ];
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const { createClient } = await import('@/lib/supabase/client');
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
     localStorage.removeItem('adminToken');
     router.push('/admin/login');
   };

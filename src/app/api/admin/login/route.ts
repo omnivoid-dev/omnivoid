@@ -1,14 +1,9 @@
 /**
- * OMNIVOID LABS - Admin Login API
- * 
- * POST /api/admin/login
- * Body: { "email": "admin@omnivoidlabs.com", "password": "admin-password" }
- * Response: { "success": true, "token": "jwt-token", "expiresAt": "2024-01-01T00:00:00Z" }
+ * OMNIVOID LABS - Admin Login API (Supabase Auth)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { verifyPassword, generateToken } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -22,43 +17,36 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Find admin user by email
-    const adminUser = await prisma.adminUser.findFirst({
-      where: { 
-        email: email,
-        isActive: true 
-      }
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     });
 
-    if (!adminUser) {
+    if (error || !data.user) {
       return NextResponse.json(
-        { success: false, error: 'INVALID_CREDENTIALS', message: 'Invalid email or password' },
+        { success: false, error: 'INVALID_CREDENTIALS', message: error?.message || 'Invalid email or password' },
         { status: 401 }
       );
     }
 
-    // Verify password
-    const isValid = await verifyPassword(password, adminUser.password);
-
-    if (!isValid) {
+    if (data.user.app_metadata?.role !== 'admin') {
+      await supabase.auth.signOut();
       return NextResponse.json(
-        { success: false, error: 'INVALID_CREDENTIALS', message: 'Invalid email or password' },
-        { status: 401 }
+        { success: false, error: 'FORBIDDEN', message: 'Admin role required' },
+        { status: 403 }
       );
     }
-
-    // Generate JWT token
-    const token = generateToken(adminUser.id);
-
-    // Calculate expiration (7 days from now)
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     return NextResponse.json({
       success: true,
-      token,
-      expiresAt
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        role: data.user.app_metadata?.role,
+      },
+      session: data.session,
     });
-
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

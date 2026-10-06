@@ -48,7 +48,6 @@ export default function DocumentsPage() {
 
   const handleSubmit = async (formData: any) => {
     setIsSaving(true);
-    const token = localStorage.getItem('adminToken');
     const method = editingItem ? 'PUT' : 'POST';
     const url = editingItem ? `/api/admin/documents/${editingItem.id}` : '/api/admin/documents';
 
@@ -57,7 +56,6 @@ export default function DocumentsPage() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(formData),
       });
@@ -77,11 +75,9 @@ export default function DocumentsPage() {
   const handleDelete = async (item: Document) => {
     if (!confirm(`Are you sure you want to delete "${item.title}"?`)) return;
 
-    const token = localStorage.getItem('adminToken');
     try {
       const res = await fetch(`/api/admin/documents/${item.id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.success) fetchData();

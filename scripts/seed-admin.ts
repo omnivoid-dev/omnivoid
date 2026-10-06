@@ -1,58 +1,67 @@
 /**
- * OMNIVOID LABS - Admin User Seed Script
+ * OMNIVOID LABS - Admin User Seed Script (Supabase Auth)
  * 
- * This script creates the initial admin user in the database.
- * Run with: npx tsx scripts/seed-admin.ts
- * 
- * The admin password is read from the ADMIN_PASSWORD environment variable.
+ * Usage: npx tsx scripts/seed-admin.ts <email> <password>
  */
 
+import { createAdminClient } from '../src/lib/supabase/admin';
 import { prisma } from '../src/lib/prisma';
-import { hashPassword } from '../src/lib/auth';
 
 async function main() {
-  console.log('🌱 Seeding admin user...');
+  console.log('🌱 Seeding Supabase admin user...');
 
-  // Get admin password from environment
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const args = process.argv.slice(2);
+  const email = args[0] || process.env.ADMIN_EMAIL || 'admin@omnivoidlabs.com';
+  const password = args[1] || process.env.ADMIN_PASSWORD;
 
-  if (!adminPassword) {
-    console.error('❌ Error: ADMIN_PASSWORD environment variable is not set');
-    console.log('Please set ADMIN_PASSWORD in your .env file or run:');
-    console.log('  export ADMIN_PASSWORD="your-secure-password"');
+  if (!password) {
+    console.error('❌ Error: Password is required as argument or ADMIN_PASSWORD env var');
+    console.log('Usage: npx tsx scripts/seed-admin.ts admin@omnivoidlabs.com <password>');
     process.exit(1);
   }
 
-  if (adminPassword.length < 8) {
-    console.error('❌ Error: ADMIN_PASSWORD must be at least 8 characters long');
+  const supabaseAdmin = createAdminClient();
+
+  // Check if user already exists
+  const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+  
+  if (listError) {
+    console.error('❌ Error listing users from Supabase Auth:', listError.message);
     process.exit(1);
   }
 
-  // Hash the password
-  const hashedPassword = await hashPassword(adminPassword);
+  const existingUser = users.find((u) => u.email === email);
 
-  // Check if admin user already exists
-  const existingAdmin = await prisma.adminUser.findFirst({
-    where: { email: 'admin@omnivoidlabs.com' }
-  });
-
-  if (existingAdmin) {
-    console.log('⚠️  Admin user already exists. Updating password...');
-    await prisma.adminUser.update({
-      where: { id: existingAdmin.id },
-      data: { password: hashedPassword }
-    });
-    console.log('✅ Admin password updated successfully!');
-  } else {
-    // Create the admin user
-    await prisma.adminUser.create({
-      data: {
-        email: 'admin@omnivoidlabs.com',
-        password: hashedPassword,
-        isActive: true
+  if (existingUser) {
+    console.log(`⚠️  User ${email} already exists (${existingUser.id}). Updating password and admin role...`);
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      existingUser.id,
+      {
+        password,
+        app_metadata: { role: 'admin' },
+        email_confirm: true,
       }
+    );
+
+    if (updateError) {
+      console.error('❌ Error updating user:', updateError.message);
+      process.exit(1);
+    }
+    console.log(`✅ Admin user ${email} updated successfully!`);
+  } else {
+    console.log(`Creating new admin user ${email}...`);
+    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      app_metadata: { role: 'admin' },
     });
-    console.log('✅ Admin user created successfully!');
+
+    if (createError) {
+      console.error('❌ Error creating admin user:', createError.message);
+      process.exit(1);
+    }
+    console.log(`✅ Admin user ${email} created successfully (ID: ${newUser.user.id})!`);
   }
 
   // Create default site settings if they don't exist
@@ -69,14 +78,9 @@ async function main() {
       create: setting
     });
   }
-  console.log('✅ Default site settings created!');
+  console.log('✅ Default site settings verified!');
 
-  console.log('\n🎉 Seeding completed successfully!');
-  console.log('\nNext steps:');
-  console.log('1. Set up your DATABASE_URL in .env');
-  console.log('2. Run: npx prisma migrate dev');
-  console.log('3. Run: npm run seed:admin');
-  console.log('4. Start using the admin API endpoints');
+  console.log('\n🎉 Admin seeding completed!');
 }
 
 main()
