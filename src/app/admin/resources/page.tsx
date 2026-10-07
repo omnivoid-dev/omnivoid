@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
 import EntityForm, { FieldDefinition } from '@/components/admin/EntityForm';
+import Mp3UploadModal from '@/components/admin/Mp3UploadModal';
 
 interface Resource {
   id: string;
@@ -20,6 +21,7 @@ export default function ResourcesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<Resource | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showMp3Modal, setShowMp3Modal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -122,12 +124,20 @@ export default function ResourcesPage() {
           <h1 className="text-2xl font-bold text-white mb-1">Media Resources</h1>
           <p className="text-sm text-white/40 font-mono">Manage audio, video, and visual artifacts.</p>
         </div>
-        <button
-          onClick={() => { setEditingItem(null); setShowForm(true); }}
-          className="bg-[#99ccff] text-[#080808] px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#7ab8e6] transition-all"
-        >
-          + NEW RESOURCE
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowMp3Modal(true)}
+            className="bg-[#99ccff]/10 text-[#99ccff] border border-[#99ccff]/30 px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-[#99ccff]/20 transition-all flex items-center gap-2"
+          >
+            <span>🎵</span> UPLOAD MP3
+          </button>
+          <button
+            onClick={() => { setEditingItem(null); setShowForm(true); }}
+            className="bg-[#99ccff] text-[#080808] px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#7ab8e6] transition-all"
+          >
+            + NEW RESOURCE
+          </button>
+        </div>
       </div>
 
       <DataTable
@@ -155,6 +165,17 @@ export default function ResourcesPage() {
           isLoading={isSaving}
           onCancel={() => setShowForm(false)}
           onSubmit={handleSubmit}
+        />
+      )}
+
+      {showMp3Modal && (
+        <Mp3UploadModal
+          editions={editions}
+          onClose={() => setShowMp3Modal(false)}
+          onSuccess={() => {
+            setShowMp3Modal(false);
+            fetchData();
+          }}
         />
       )}
     </AdminLayout>

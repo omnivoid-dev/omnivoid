@@ -6,6 +6,10 @@ import { RetroWindow, Tab } from '@/components/RetroWindow';
 import { SplashScreen } from '@/components/SplashScreen';
 import { StartScreen } from '@/components/StartScreen';
 import { AgentSystem } from '@/components/AgentSystem';
+import { ThreeCanvas } from '@/components/ThreeCanvas';
+import { useAudioAnalyzer } from '@/hooks/useAudioAnalyzer';
+import { AudioPlayerWindow, AudioTrack } from '@/components/AudioPlayerWindow';
+import { AgentOverlay } from '@/components/AgentOverlay';
 
 interface ContentItem {
   id: string;
@@ -75,10 +79,16 @@ export default function Home() {
   const [windowContents, setWindowContents] = useState<Record<string, string>>({});
   const [windowTabs, setWindowTabs] = useState<Record<string, Tab[]>>({});
   const [selectedEditionId, setSelectedEditionId] = useState<string | null>(null);
-  const [showLatestRituals, setShowLatestRituals] = useState(false);
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
   const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
-  
+
+  // Audio & 3D Visualizer state
+  const [isAudioPlayerOpen, setIsAudioPlayerOpen] = useState(false);
+  const [currentTrack, setCurrentTrack] = useState<AudioTrack | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
+  const { connectAudioElement, getAudioData } = useAudioAnalyzer();
+
   const agentSystemRef = useRef<AgentSystem | null>(null);
 
   useEffect(() => {
@@ -121,7 +131,7 @@ export default function Home() {
     if (content) {
       const updatedContents: Record<string, string> = {};
       const updatedTabs: Record<string, Tab[]> = {};
-      
+
       menuSections.forEach(section => {
         if (openWindows[section.id]) {
           const { content: c, tabs: t } = formatSectionContent(section);
@@ -129,11 +139,23 @@ export default function Home() {
           updatedTabs[section.id] = t;
         }
       });
-      
+
       setWindowContents(prev => ({ ...prev, ...updatedContents }));
       setWindowTabs(prev => ({ ...prev, ...updatedTabs }));
     }
   }, [selectedEditionId, content]);
+
+  // Collect audio tracks from database resources
+  const audioTracks: AudioTrack[] = (content?.resources || [])
+    .filter(r => (r.type === 'AUDIO' || r.type === 'audio') && (r.editionId === selectedEditionId || !selectedEditionId))
+    .map(r => ({
+      id: r.id,
+      title: r.title,
+      artist: r.metadata?.artist || 'OMNIVOID AUDIO LABS',
+      url: r.url || r.filePath || '',
+      duration: r.metadata?.duration,
+      editionName: content?.editions.find(e => e.id === r.editionId)?.name,
+    }));
 
   const formatSectionContent = (section: MenuSection): { content: string; tabs: Tab[] } => {
     if (!content) return { content: '', tabs: [] };
@@ -276,10 +298,24 @@ export default function Home() {
     return <SplashScreen onComplete={() => setIsSplashComplete(true)} />;
   }
 
+  const selectedEditionName = content?.editions.find(e => e.id === selectedEditionId)?.name;
+
   return (
     <main className="fixed inset-0 bg-[#050505] overflow-hidden flex flex-col">
-      <canvas id="agents" className="fixed inset-0 z-0 opacity-30 pointer-events-none" />
+      {/* 3D WebGL Canvas Background */}
+      <ThreeCanvas getAudioData={getAudioData} isPlaying={isPlayingAudio} />
+
+      {/* 2D Agent Canvas Overlay */}
+      <canvas id="agents" className="fixed inset-0 z-0 opacity-25 pointer-events-none" />
       
+      {/* Agent Dialogue HUD Overlay */}
+      <AgentOverlay
+        currentTrackTitle={currentTrack?.title}
+        isPlaying={isPlayingAudio}
+        selectedEditionName={selectedEditionName}
+      />
+
+      {/* Main OMNIVOID Central Logo watermark */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10">
         <motion.img 
           initial={{ opacity: 0, scale: 0.8 }}
@@ -295,6 +331,7 @@ export default function Home() {
         />
       </div>
 
+      {/* Edition Selectors */}
       <div className="fixed bottom-24 left-1/2 -translate-x-1/2 flex gap-8 z-[100]">
         {content?.editions.slice(0, 3).map((edition, idx) => (
           <motion.button
@@ -313,12 +350,13 @@ export default function Home() {
         ))}
       </div>
 
+      {/* Retro Windows */}
       <div className="relative z-50 flex-1">
         {menuSections.map(section => (
           <RetroWindow
             key={section.id}
             id={section.id}
-            title={`${section.label} [V4] - ${content?.editions.find(e => e.id === selectedEditionId)?.name || '...'}`}
+            title={`${section.label} [V4] - ${selectedEditionName || '...'}`}
             content={windowContents[section.id] || ''}
             isOpen={openWindows[section.id] || false}
             onClose={() => setOpenWindows(prev => ({ ...prev, [section.id]: false }))}
@@ -328,6 +366,18 @@ export default function Home() {
         ))}
       </div>
 
+      {/* Audio Player Window */}
+      <AudioPlayerWindow
+        tracks={audioTracks}
+        isOpen={isAudioPlayerOpen}
+        onClose={() => setIsAudioPlayerOpen(false)}
+        connectAudioElement={connectAudioElement}
+        getAudioData={getAudioData}
+        onTrackChange={setCurrentTrack}
+        onPlaybackStateChange={setIsPlayingAudio}
+      />
+
+      {/* Taskbar / Footer */}
       <footer className="fixed bottom-0 left-0 right-0 h-12 bg-black/90 backdrop-blur-xl border-t border-white/5 flex items-center justify-between px-8 z-[200]">
         <div className="flex items-center gap-6">
           <button 
@@ -337,8 +387,19 @@ export default function Home() {
             <span className="text-sm">▦</span> START
           </button>
           <div className="h-4 w-[1px] bg-white/10" />
+          <button
+            onClick={() => setIsAudioPlayerOpen(!isAudioPlayerOpen)}
+            className={`flex items-center gap-2 text-[10px] font-mono tracking-widest px-3 py-1 rounded transition-all border ${
+              isAudioPlayerOpen 
+                ? 'bg-[#99ccff]/20 text-[#99ccff] border-[#99ccff]/40' 
+                : 'bg-white/5 text-white/60 border-white/10 hover:border-[#99ccff]/30 hover:text-white'
+            }`}
+          >
+            <span>🎵</span> AUDIO PLAYER {isPlayingAudio && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />}
+          </button>
+          <div className="h-4 w-[1px] bg-white/10" />
           <div className="text-[10px] text-white/30 font-mono tracking-widest uppercase">
-            {content?.editions.find(e => e.id === selectedEditionId)?.name || 'INITIALIZING...'}
+            {selectedEditionName || 'INITIALIZING...'}
           </div>
         </div>
 
@@ -352,6 +413,7 @@ export default function Home() {
         </div>
       </footer>
 
+      {/* Start Menu */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
@@ -364,6 +426,13 @@ export default function Home() {
               <div className="text-[10px] text-[#99ccff] font-bold tracking-[0.3em]">OMNIVOID OS v1.0</div>
             </div>
             <div className="p-2">
+              <button
+                onClick={() => { setIsAudioPlayerOpen(true); setIsMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-3 py-2 text-[#99ccff] hover:bg-white/5 rounded transition-all text-xs font-mono text-left font-bold"
+              >
+                <span className="text-lg">🎧</span> AUDIO STREAM PLAYER
+              </button>
+              <div className="h-[1px] bg-white/10 my-1" />
               {menuSections.map(item => (
                 <button
                   key={item.id}
