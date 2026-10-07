@@ -27,12 +27,25 @@ interface ContentItem {
 interface ContentStructure {
   audio: ContentItem[];
   gallery: ContentItem[];
-  gigs: ContentItem[];
   links: ContentItem[];
   documents: ContentItem[];
   resources: any[];
-  editions: { id: string; name: string; slug: string; isActive: boolean; sortOrder: number }[];
-  latestGig: any | null;
+  conundrumText?: string;
+  contactInfo?: { contactEmail: string; submissionsEmail: string };
+  editions: {
+    id: string;
+    name: string;
+    slug: string;
+    description?: string;
+    posterUrl?: string;
+    workshopPosterUrl?: string;
+    eventDate?: string;
+    artists?: any;
+    youtubeLinks?: any;
+    isLatestRitual?: boolean;
+    isActive: boolean;
+    sortOrder: number;
+  }[];
   currentEdition: any | null;
 }
 
@@ -165,30 +178,66 @@ export default function Home() {
 
     switch (section.type) {
       case 'documents':
-        items = content.documents.filter(d => 
-          (d.editionId === selectedEditionId || !d.editionId) && 
-          d.type === section.docType
-        );
-        
-        if (section.docType === 'CONUNDRUM' || section.docType === 'CONTACT') {
-          const doc = items[0];
-          html = doc ? `
-            <div class="prose prose-invert max-w-none font-mono text-xs leading-relaxed text-[#99ccff]">
-              <h3 class="text-lg font-bold text-white mb-4 border-b border-[#99ccff]/20 pb-2">${doc.title}</h3>
-              <div class="whitespace-pre-wrap">${doc.content}</div>
-            </div>
-          ` : '<p class="text-white/40">Knowledge base record not found.</p>';
-        } else {
+        if (section.docType === 'CONUNDRUM') {
           html = `
-            <div class="space-y-4">
-              ${items.length === 0 ? '<p class="text-white/40">No research papers available for this iteration.</p>' : ''}
+            <div class="prose prose-invert max-w-none font-mono text-xs leading-relaxed text-[#99ccff]">
+              <div class="flex items-center gap-2 border-b border-[#99ccff]/30 pb-3 mb-4">
+                <span class="text-xl">🧩</span>
+                <h3 class="text-base font-bold text-white uppercase tracking-widest">ABOUT OMNIVOID (CONUNDRUM)</h3>
+              </div>
+              <div class="whitespace-pre-wrap text-white/90 leading-relaxed font-mono bg-white/5 p-4 rounded-lg border border-white/10">
+                ${(content as any).conundrumText || 'OMNIVOID is an autonomous sonic & visual research lab.'}
+              </div>
+            </div>
+          `;
+        } else if (section.docType === 'CONTACT') {
+          const contactInfo = (content as any).contactInfo || { contactEmail: 'contact@omnivoid.dev', submissionsEmail: 'submissions@omnivoid.dev' };
+          html = `
+            <div class="font-mono space-y-6">
+              <div class="flex items-center gap-2 border-b border-[#99ccff]/30 pb-3">
+                <span class="text-xl">📧</span>
+                <h3 class="text-base font-bold text-white uppercase tracking-widest">CONTACT & SUBMISSIONS</h3>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-5 bg-white/5 border border-white/10 rounded-xl space-y-2 hover:border-[#99ccff]/40 transition-all">
+                  <span class="text-[10px] text-[#99ccff] font-bold uppercase tracking-widest block">GENERAL ENQUIRIES</span>
+                  <a href="mailto:${contactInfo.contactEmail}" class="text-sm font-bold text-white hover:text-[#99ccff] transition-colors break-all">
+                    ${contactInfo.contactEmail}
+                  </a>
+                  <p class="text-[10px] text-white/40 pt-1">For general inquiries, collaborations, and media access.</p>
+                </div>
+
+                <div class="p-5 bg-white/5 border border-white/10 rounded-xl space-y-2 hover:border-[#99ccff]/40 transition-all">
+                  <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest block">TRACK & DEMO SUBMISSIONS</span>
+                  <a href="mailto:${contactInfo.submissionsEmail}" class="text-sm font-bold text-white hover:text-emerald-400 transition-colors break-all">
+                    ${contactInfo.submissionsEmail}
+                  </a>
+                  <p class="text-[10px] text-white/40 pt-1">For audio submissions, stems, and mix proposals.</p>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          // RESEARCH PAPERS & DOCUMENTS
+          items = content.documents.filter(d => d.type === 'RESEARCH');
+          html = `
+            <div class="space-y-4 font-mono">
+              ${items.length === 0 ? '<p class="text-white/40">No research papers available in this iteration.</p>' : ''}
               ${items.map(doc => `
-                <div class="p-4 bg-white/5 border border-white/10 rounded group hover:border-[#99ccff]/50 transition-all">
-                  <h4 class="text-[#99ccff] font-bold mb-1">${doc.title}</h4>
-                  <p class="text-[10px] text-white/40 mb-3">${doc.excerpt || 'Research artifact from the OMNIVOID repository.'}</p>
+                <div class="p-4 bg-white/5 border border-white/10 rounded-lg group hover:border-[#99ccff]/50 transition-all">
+                  <div class="flex items-center justify-between mb-2">
+                    <h4 class="text-[#99ccff] font-bold text-xs">${doc.title}</h4>
+                    <span class="text-[9px] px-2 py-0.5 rounded bg-white/10 text-white/60 font-bold">PDF DOCUMENT</span>
+                  </div>
+                  <p class="text-[10px] text-white/50 mb-3">${doc.excerpt || 'Research artifact from the OMNIVOID repository.'}</p>
                   <div class="flex justify-between items-center">
-                    <span class="text-[9px] text-white/20 font-mono tracking-tighter uppercase">ID: ${doc.id.slice(-8)}</span>
-                    <button class="text-[10px] px-2 py-1 bg-[#99ccff]/10 text-[#99ccff] border border-[#99ccff]/20 rounded">ACCESS DATA</button>
+                    <span class="text-[9px] text-white/30 font-mono">ID: ${doc.id.slice(-8)}</span>
+                    ${doc.fileUrl ? `
+                      <a href="${doc.fileUrl}" target="_blank" class="text-[10px] px-3 py-1 bg-[#99ccff] text-[#050505] font-bold rounded hover:bg-[#7ab8e6]">DOWNLOAD PDF ↗</a>
+                    ` : `
+                      <button class="text-[10px] px-3 py-1 bg-[#99ccff]/10 text-[#99ccff] border border-[#99ccff]/20 rounded">ACCESS DATA</button>
+                    `}
                   </div>
                 </div>
               `).join('')}
@@ -198,19 +247,22 @@ export default function Home() {
         return { content: html, tabs: [] };
 
       case 'resources':
-        items = content.resources.filter(r => r.editionId === selectedEditionId && r.type === section.resourceType?.toLowerCase());
+        items = content.resources.filter(r => r.type === 'document' || r.type === 'pdf' || r.type === 'doc');
         html = `
-          <div class="grid grid-cols-1 gap-2">
-             ${items.length === 0 ? '<p class="text-white/40">No media assets found in this sector.</p>' : ''}
+          <div class="space-y-3 font-mono">
+             ${items.length === 0 ? '<p class="text-white/40">No research PDF assets found.</p>' : ''}
              ${items.map(res => `
-              <div class="flex items-center gap-3 p-3 bg-white/5 border border-white/10 rounded group hover:border-[#99ccff]/40 transition-all cursor-pointer">
-                <div class="w-10 h-10 bg-black flex items-center justify-center border border-white/5 rounded text-xl">
-                  ${section.resourceType === 'AUDIO' ? '🎵' : '🖼️'}
+              <div class="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded group hover:border-[#99ccff]/40 transition-all">
+                <div class="flex items-center gap-3">
+                  <span class="text-xl">📄</span>
+                  <div>
+                    <div class="text-[11px] font-bold text-white">${res.title}</div>
+                    <div class="text-[9px] text-[#99ccff]/50 font-mono">PDF RESEARCH ARTIFACT</div>
+                  </div>
                 </div>
-                <div>
-                  <div class="text-[11px] font-bold text-white">${res.title}</div>
-                  <div class="text-[9px] text-[#99ccff]/40 font-mono">HASH: ${res.id.slice(0, 12)}</div>
-                </div>
+                ${res.path ? `
+                  <a href="${res.path}" target="_blank" class="text-[10px] px-3 py-1 bg-[#99ccff]/10 text-[#99ccff] border border-[#99ccff]/20 rounded hover:bg-[#99ccff]/20">VIEW PDF ↗</a>
+                ` : ''}
               </div>
             `).join('')}
           </div>
@@ -218,62 +270,70 @@ export default function Home() {
         return { content: html, tabs: [] };
 
       case 'links':
-        items = content.links.filter(l => 
-          l.category === section.categoryId && 
-          (l.editionId === selectedEditionId || !l.editionId)
-        );
+        items = content.links.filter(l => l.linkType === 'YOUTUBE' || l.category === section.categoryId);
         html = `
-          <div class="space-y-3">
-            ${items.length === 0 ? `<p class="text-white/40">No ${section.label.toLowerCase()} links active for this edition.</p>` : ''}
-            ${items.map(link => {
-              const isYouTube = link.linkType === 'YOUTUBE';
-              const isMixcloud = link.linkType === 'MIXCLOUD';
-              const clickHandler = isYouTube ? `window.openYouTube('${link.path}')` : isMixcloud ? `window.openMixcloud('${link.path}')` : `window.open('${link.path}', '_blank')`;
-              
-              return `
-                <div 
-                  onclick="${clickHandler}"
-                  class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded hover:bg-[#99ccff]/10 hover:border-[#99ccff]/40 transition-all cursor-pointer group"
-                >
-                  <div class="flex items-center gap-3">
-                    <span class="text-lg opacity-40 group-hover:opacity-100">
-                      ${isYouTube ? '📺' : isMixcloud ? '📻' : '🔗'}
-                    </span>
-                    <span class="text-xs font-mono tracking-tight">${link.title}</span>
-                  </div>
-                  <span class="text-[10px] text-[#99ccff] opacity-0 group-hover:opacity-100 transition-opacity">
-                    ${isYouTube || isMixcloud ? 'PLAY ▶' : 'OPEN ↗'}
-                  </span>
+          <div class="space-y-3 font-mono">
+            ${items.length === 0 ? `<p class="text-white/40">No YouTube live transmissions found.</p>` : ''}
+            ${items.map(link => `
+              <div 
+                onclick="window.openYouTube('${link.path}')"
+                class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded hover:bg-[#99ccff]/10 hover:border-[#99ccff]/40 transition-all cursor-pointer group"
+              >
+                <div class="flex items-center gap-3">
+                  <span class="text-lg opacity-60 group-hover:opacity-100">📺</span>
+                  <span class="text-xs font-mono font-bold tracking-tight text-white">${link.title}</span>
                 </div>
-              `;
-            }).join('')}
+                <span class="text-[10px] text-[#99ccff] font-bold">PLAY TRANSMISSION ▶</span>
+              </div>
+            `).join('')}
           </div>
         `;
         return { content: html, tabs: [] };
 
       case 'gigs': {
-        const currentEditionObj = content.editions.find(e => e.id === selectedEditionId) || content.editions[0];
-        const editionVideos = content.links.filter(l => (l.editionId === selectedEditionId || !l.editionId) && l.linkType === 'YOUTUBE');
-        const editionGallery = content.resources.filter(r => r.editionId === selectedEditionId);
-        const gigData = content.latestGig;
+        const currentEditionObj = (content.editions || []).find((e: any) => e.id === selectedEditionId) || (content.editions || [])[0];
+        
+        let artistList: any[] = [];
+        if (currentEditionObj?.artists) {
+          try {
+            artistList = typeof currentEditionObj.artists === 'string' ? JSON.parse(currentEditionObj.artists) : currentEditionObj.artists;
+          } catch {
+            artistList = [];
+          }
+        }
+
+        let youtubeList: any[] = [];
+        if (currentEditionObj?.youtubeLinks) {
+          try {
+            youtubeList = typeof currentEditionObj.youtubeLinks === 'string' ? JSON.parse(currentEditionObj.youtubeLinks) : currentEditionObj.youtubeLinks;
+          } catch {
+            youtubeList = [];
+          }
+        }
 
         html = `
           <div class="space-y-6 font-mono">
+            {/* Header Badge */}
             <div class="p-4 bg-[#99ccff]/10 border border-[#99ccff]/30 rounded-lg flex items-center justify-between">
               <div>
-                <span class="text-[10px] text-[#99ccff] tracking-widest uppercase font-bold">CURRENT EDITION</span>
+                <span class="text-[10px] text-[#99ccff] tracking-widest uppercase font-bold">LATEST RITUAL // EDITION</span>
                 <h3 class="text-lg font-bold text-white mb-0.5">${currentEditionObj?.name || 'OMNIVOID RITUAL'}</h3>
-                <p class="text-xs text-white/50">${currentEditionObj?.slug ? `SLUG: /${currentEditionObj.slug}` : 'LIVE PERFORMANCE ARCHIVE'}</p>
+                <p class="text-xs text-white/50">
+                  ${currentEditionObj?.eventDate ? `EVENT DATE: ${new Date(currentEditionObj.eventDate).toLocaleDateString()}` : 'SINGLE EVENT DAY'}
+                </p>
               </div>
-              <span class="text-xs px-3 py-1 bg-[#99ccff] text-[#050505] font-bold rounded-full">ACTIVE EDITION</span>
+              <span class="text-xs px-3 py-1 bg-[#99ccff] text-[#050505] font-bold rounded-full">
+                ${currentEditionObj?.isLatestRitual ? '★ LATEST RITUAL' : 'ACTIVE EDITION'}
+              </span>
             </div>
 
-            <!-- Event Poster & Details -->
+            <!-- Main Posters Section -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Main Edition Poster -->
               <div class="bg-black/40 border border-white/10 rounded-lg p-4 flex flex-col items-center justify-center text-center">
                 <div class="w-full aspect-[3/4] bg-white/5 rounded border border-white/10 flex items-center justify-center mb-3 relative overflow-hidden group">
-                  ${gigData?.images && gigData.images[0] ? `
-                    <img src="${gigData.images[0]}" alt="Poster" class="w-full h-full object-cover" />
+                  ${currentEditionObj?.posterUrl ? `
+                    <img src="${currentEditionObj.posterUrl}" alt="Main Poster" class="w-full h-full object-cover" />
                   ` : `
                     <div class="text-center p-6">
                       <span class="text-4xl mb-2 block">🖼️</span>
@@ -285,53 +345,73 @@ export default function Home() {
                 <span class="text-xs text-[#99ccff] font-bold uppercase tracking-wider">MAIN EVENT POSTER</span>
               </div>
 
-              <!-- Workshop & Lineup -->
-              <div class="space-y-4">
-                <div class="p-4 bg-white/5 border border-white/10 rounded-lg space-y-2">
-                  <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">🛠️ WORKSHOP DETAILS</span>
-                  <h4 class="text-sm font-bold text-white">${gigData?.workshopTitle || 'SYNTHESIS & AUDIO VISUAL WORKSHOP'}</h4>
-                  <p class="text-xs text-white/60 leading-relaxed">${gigData?.workshopDescription || 'Hands-on sound design, WebGL shader modulation, and audio reactive geometry assembly.'}</p>
-                  ${gigData?.workshopMaterials ? `
-                    <div class="pt-2 text-[10px] text-[#99ccff]/80 font-mono">
-                      <strong>REQUIRED MATERIALS:</strong> ${Array.isArray(gigData.workshopMaterials) ? gigData.workshopMaterials.join(', ') : gigData.workshopMaterials}
+              <!-- Workshop Poster & Details -->
+              <div class="bg-black/40 border border-white/10 rounded-lg p-4 flex flex-col items-center justify-center text-center">
+                <div class="w-full aspect-[3/4] bg-white/5 rounded border border-white/10 flex items-center justify-center mb-3 relative overflow-hidden group">
+                  ${currentEditionObj?.workshopPosterUrl ? `
+                    <img src="${currentEditionObj.workshopPosterUrl}" alt="Workshop Poster" class="w-full h-full object-cover" />
+                  ` : `
+                    <div class="text-center p-6">
+                      <span class="text-4xl mb-2 block">🛠️</span>
+                      <p class="text-xs text-emerald-400 font-bold">WORKSHOP POSTER</p>
+                      <p class="text-[10px] text-white/40 mt-1">AUDIO & VISUAL LAB</p>
                     </div>
-                  ` : ''}
+                  `}
                 </div>
-
-                <div class="p-4 bg-white/5 border border-white/10 rounded-lg space-y-2">
-                  <span class="text-[10px] text-[#99ccff] font-bold uppercase tracking-widest">🎭 PERFORMERS & LINEUP</span>
-                  <div class="space-y-1.5 pt-1">
-                    <div class="flex justify-between items-center text-xs">
-                      <span class="text-white font-bold">OMNIVOID AUDIO COLLECTIVE</span>
-                      <span class="text-[10px] text-white/40">LIVE SET & VISUALS</span>
-                    </div>
-                    <div class="flex justify-between items-center text-xs">
-                      <span class="text-white font-bold">QUANTUM CLIMB LABS</span>
-                      <span class="text-[10px] text-white/40">ANALOG SYNTHESIS</span>
-                    </div>
-                  </div>
-                </div>
+                <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider">WORKSHOP POSTER</span>
               </div>
+            </div>
+
+            <!-- Artists & Lineup with Handles -->
+            <div class="p-4 bg-white/5 border border-white/10 rounded-lg space-y-3">
+              <span class="text-[10px] text-[#99ccff] font-bold uppercase tracking-widest block border-b border-white/10 pb-2">
+                🎭 PERFORMERS & LINEUP HANDLES
+              </span>
+              {artistList.length === 0 ? (
+                <p className="text-xs text-white/40">No performer handles entered for this edition.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  ${artistList.map((artist: any) => `
+                    <div class="p-3 bg-black/50 border border-white/10 rounded flex flex-col justify-between space-y-1">
+                      <span class="text-xs font-bold text-white">${artist.name}</span>
+                      <div class="flex items-center gap-3 text-[10px] pt-1">
+                        ${artist.instagram ? `
+                          <a href="https://instagram.com/${artist.instagram.replace('@', '')}" target="_blank" class="text-[#99ccff] hover:underline">
+                            📷 ${artist.instagram}
+                          </a>
+                        ` : ''}
+                        ${artist.youtube ? `
+                          <a href="${artist.youtube.startsWith('http') ? artist.youtube : `https://youtube.com/${artist.youtube}`}" target="_blank" class="text-red-400 hover:underline">
+                            📺 YouTube
+                          </a>
+                        ` : ''}
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              )}
             </div>
 
             <!-- YouTube Videos for this Edition -->
-            <div class="pt-2">
-              <h4 class="text-xs font-bold text-[#99ccff] uppercase tracking-widest mb-3">📡 TRANSMISSION VIDEOS (${editionVideos.length})</h4>
-              <div class="space-y-2">
-                ${editionVideos.map(vid => `
-                  <div 
-                    onclick="window.openYouTube('${vid.path}')"
-                    class="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded hover:border-[#99ccff]/50 cursor-pointer transition-all group"
-                  >
-                    <div class="flex items-center gap-3">
-                      <span class="text-lg">📺</span>
-                      <span class="text-xs font-bold text-white group-hover:text-[#99ccff]">${vid.title}</span>
+            ${youtubeList.length > 0 ? `
+              <div class="pt-2">
+                <h4 class="text-xs font-bold text-[#99ccff] uppercase tracking-widest mb-3">📡 TRANSMISSION VIDEOS (${youtubeList.length})</h4>
+                <div class="space-y-2">
+                  ${youtubeList.map((vid: any) => `
+                    <div 
+                      onclick="window.openYouTube('${vid.url}')"
+                      class="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded hover:border-[#99ccff]/50 cursor-pointer transition-all group"
+                    >
+                      <div class="flex items-center gap-3">
+                        <span class="text-lg">📺</span>
+                        <span class="text-xs font-bold text-white group-hover:text-[#99ccff]">${vid.title || 'YouTube Transmission'}</span>
+                      </div>
+                      <span class="text-[10px] px-2 py-1 bg-[#99ccff]/10 text-[#99ccff] border border-[#99ccff]/20 rounded">WATCH ▶</span>
                     </div>
-                    <span class="text-[10px] px-2 py-1 bg-[#99ccff]/10 text-[#99ccff] border border-[#99ccff]/20 rounded">WATCH ▶</span>
-                  </div>
-                `).join('')}
+                  `).join('')}
+                </div>
               </div>
-            </div>
+            ` : ''}
           </div>
         `;
         return { content: html, tabs: [] };

@@ -1,18 +1,12 @@
 /**
  * OMNIVOID LABS - Unified Content API
- * 
- * This endpoint serves all content for the frontend.
- * It combines database content with file system resources.
- * 
- * GET /api/content - Returns all content structure
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { readdir, readFile, stat } from 'fs/promises';
+import { readdir } from 'fs/promises';
 import { join } from 'path';
 
-// Helper function to scan directory for files
 async function scanDirectory(dirPath: string, baseUrl: string): Promise<{ id: string; title: string; path: string; type: string }[]> {
   try {
     const entries = await readdir(dirPath, { withFileTypes: true });
@@ -49,15 +43,12 @@ export async function GET(request: NextRequest) {
   try {
     const publicDir = join(process.cwd(), 'public');
 
-    // Scan file system for resources
-    const [docs, audio, gallery, gigs] = await Promise.all([
+    const [docs, audio, gallery] = await Promise.all([
       scanDirectory(join(publicDir, 'docs'), '/docs'),
       scanDirectory(join(publicDir, 'audio'), '/audio'),
       scanDirectory(join(publicDir, 'gallery'), '/gallery'),
-      scanDirectory(join(publicDir, 'gigs'), '/gigs').then(items => items.filter(i => i.type === 'image')),
     ]);
 
-    // Get database content
     const [dbLinks, dbDocuments, editions, dbResources] = await Promise.all([
       prisma.link.findMany({
         where: { isActive: true },
@@ -68,7 +59,7 @@ export async function GET(request: NextRequest) {
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
       }).catch(() => []),
       prisma.edition.findMany({
-        orderBy: { sortOrder: 'asc' },
+        orderBy: [{ isLatestRitual: 'desc' }, { sortOrder: 'asc' }],
       }).catch(() => []),
       prisma.resource.findMany({
         where: { isActive: true },
@@ -76,29 +67,34 @@ export async function GET(request: NextRequest) {
       }).catch(() => []),
     ]);
 
-    const activeEdition = editions.find(e => e.isActive) || editions[0];
+    const activeEdition = editions.find(e => e.isLatestRitual) || editions.find(e => e.isActive) || editions[0];
 
-    // Get latest gig for "Latest Rituals" button
-    const latestGig = await prisma.gig.findFirst({
-      where: { isActive: true },
-      orderBy: { date: 'desc' },
-      include: {
-        edition: {
-          select: { id: true, name: true, slug: true },
-        },
-      },
-    }).catch(() => null);
+    // Extract Conundrum & Contact Info documents cleanly
+    const conundrumDoc = dbDocuments.find(d => d.type === 'CONUNDRUM');
+    const contactDoc = dbDocuments.find(d => d.type === 'CONTACT');
 
-    // Build resources structure
+    let contactData = { contactEmail: 'contact@omnivoid.dev', submissionsEmail: 'submissions@omnivoid.dev' };
+    if (contactDoc) {
+      try {
+        const parsed = JSON.parse(contactDoc.content);
+        contactData = {
+          contactEmail: parsed.contactEmail || 'contact@omnivoid.dev',
+          submissionsEmail: parsed.submissionsEmail || 'submissions@omnivoid.dev',
+        };
+      } catch {
+        contactData = { contactEmail: contactDoc.content, submissionsEmail: contactDoc.content };
+      }
+    }
+
     const resources = dbResources.map(res => ({
       id: res.id,
       title: res.title,
       path: res.url || res.filePath || '',
       type: res.type.toLowerCase(),
       editionId: res.editionId,
+      metadata: res.metadata,
     }));
 
-    // Build links structure from database
     const links = dbLinks.map(link => ({
       id: link.id,
       title: link.title,
@@ -110,7 +106,6 @@ export async function GET(request: NextRequest) {
       editionId: (link.metadata as any)?.editionId || link.editionId,
     }));
 
-    // Build documents structure from database
     const documents = dbDocuments.map(doc => ({
       id: doc.id,
       title: doc.title,
@@ -124,49 +119,38 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        // File system resources (only audio/gallery now)
         audio,
         gallery,
-        gigs,
-        
-        // Database content
         links,
         documents,
         resources,
+        conundrumText: conundrumDoc?.content || 'OMNIVOID is an autonomous sonic & visual research lab.',
+        contactInfo: contactData,
         editions: editions.map(e => ({
           id: e.id,
           name: e.name,
           slug: e.slug,
+          description: e.description,
+          posterUrl: e.posterUrl,
+          workshopPosterUrl: e.workshopPosterUrl,
+          eventDate: e.eventDate,
+          artists: e.artists,
+          youtubeLinks: e.youtubeLinks,
+          isLatestRitual: e.isLatestRitual,
           isActive: e.isActive,
           sortOrder: e.sortOrder,
         })),
-        
-        // Latest gig for "Latest Rituals" button
-        latestGig: latestGig ? {
-          id: latestGig.id,
-          title: latestGig.title,
-          subtitle: latestGig.subtitle,
-          description: latestGig.description,
-          date: latestGig.date,
-          venue: latestGig.venue,
-          location: latestGig.location,
-          hasWorkshop: latestGig.hasWorkshop,
-          workshopTitle: latestGig.workshopTitle,
-          workshopDescription: latestGig.workshopDescription,
-          workshopMaterials: latestGig.workshopMaterials ? JSON.parse(latestGig.workshopMaterials as string) : null,
-          images: latestGig.images,
-          videoUrl: latestGig.videoUrl,
-          mixcloudUrl: latestGig.mixcloudUrl,
-          edition: latestGig.edition,
-        } : null,
-
-        // Active edition
         currentEdition: activeEdition ? {
           id: activeEdition.id,
           name: activeEdition.name,
           slug: activeEdition.slug,
           description: activeEdition.description,
-          themeColors: activeEdition.themeColors,
+          posterUrl: activeEdition.posterUrl,
+          workshopPosterUrl: activeEdition.workshopPosterUrl,
+          eventDate: activeEdition.eventDate,
+          artists: activeEdition.artists,
+          youtubeLinks: activeEdition.youtubeLinks,
+          isLatestRitual: activeEdition.isLatestRitual,
         } : null,
       },
     });
@@ -174,22 +158,10 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching content:', error);
     return NextResponse.json(
       { 
-        success: true, 
-        data: {
-          docs: [],
-          audio: [],
-          gallery: [],
-          gigs: [],
-          links: [],
-          documents: [],
-          resources: [],
-          editions: [],
-          latestGig: null,
-          currentEdition: null,
-        },
+        success: false, 
         error: 'Failed to load content'
       },
-      { status: 200 }
+      { status: 500 }
     );
   }
-}
+}

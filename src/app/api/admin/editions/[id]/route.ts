@@ -34,10 +34,18 @@ export async function PUT(
     if (!authResult.success) return NextResponse.json({ success: false, error: authResult.error }, { status: 401 });
 
     const body = await request.json();
-    
-    // Handle dates
-    if (body.startDate) body.startDate = new Date(body.startDate);
-    if (body.endDate) body.endDate = new Date(body.endDate);
+
+    if (body.eventDate) {
+      body.eventDate = new Date(body.eventDate);
+    }
+
+    // If setting as Latest Ritual, unset other editions first
+    if (body.isLatestRitual) {
+      await prisma.edition.updateMany({
+        where: { id: { not: params.id } },
+        data: { isLatestRitual: false },
+      });
+    }
 
     const edition = await prisma.edition.update({
       where: { id: params.id },
@@ -45,8 +53,9 @@ export async function PUT(
     });
 
     return NextResponse.json({ success: true, data: edition, message: 'Edition updated successfully' });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to update edition' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error updating edition:', error);
+    return NextResponse.json({ success: false, error: 'Failed to update edition', details: error?.message || String(error) }, { status: 500 });
   }
 }
 

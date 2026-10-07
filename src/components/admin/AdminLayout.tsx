@@ -34,11 +34,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const navItems = [
     { label: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
     { label: 'Editions & Rituals', href: '/admin/editions', icon: '🏛️' },
-    { label: 'Info Pages (Text)', href: '/admin/documents', icon: '📄' },
-    { label: 'Research PDFs', href: '/admin/resources', icon: '📚' },
-    { label: 'Gigs & Lineups', href: '/admin/gigs', icon: '🎸' },
-    { label: 'Links & Transmissions', href: '/admin/links', icon: '🔗' },
-    { label: 'Settings', href: '/admin/settings', icon: '⚙️' },
+    { label: 'Research PDFs & MP3s', href: '/admin/resources', icon: '📚' },
+    { label: 'YouTube Transmissions', href: '/admin/links', icon: '📡' },
   ];
 
   const handleLogout = async () => {

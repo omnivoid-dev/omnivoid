@@ -19,18 +19,21 @@ datasource db {
 // EDITIONS - Concert series editions
 // ============================================
 model Edition {
-  id          String   @id @default(cuid())
-  name        String   // "OMNIVOID 2024", "OMNIVOID 2025"
-  slug        String   @unique // "2024", "2025" - URL-friendly
-  description String?  // Edition description
-  logoUrl     String?  // Google Drive URL or local path
-  themeColors Json?    // { primary: "#99ccff", secondary: "#336699" }
-  isActive    Boolean  @default(false)
-  startDate   DateTime?
-  endDate     DateTime?
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(cuid())
+  name              String   // "OMNIVOID 010"
+  slug              String   @unique // "010"
+  description       String?  // Edition description
+  posterUrl         String?  // Main edition poster URL
+  workshopPosterUrl String?  // Workshop poster URL
+  eventDate         DateTime? // Single event date
+  artists           Json?    // Array of { name, instagram, youtube }
+  youtubeLinks      Json?    // Array of { title, url }
+  isLatestRitual    Boolean  @default(false) // Set as Latest Ritual
+  themeColors       Json?    // { primary: "#99ccff", secondary: "#336699" }
+  isActive          Boolean  @default(true)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
   
   resources   Resource[]
   gigs        Gig[]
