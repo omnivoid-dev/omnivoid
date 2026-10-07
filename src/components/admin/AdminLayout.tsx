@@ -11,8 +11,25 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [userEmail, setUserEmail] = useState<string>('admin@omnivoid.dev');
   const router = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+        const { data } = await supabase.auth.getUser();
+        if (data?.user?.email) {
+          setUserEmail(data.user.email);
+        }
+      } catch (e) {
+        console.error('Failed to get user session:', e);
+      }
+    };
+    fetchUser();
+  }, []);
 
   const navItems = [
     { label: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
@@ -117,7 +134,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 hover:bg-white/5 rounded-lg transition-colors text-white/40 hover:text-white"
+              className="p-2 hover:bg-[#111] border border-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 12h18M3 6h18M3 18h18" />
@@ -130,15 +147,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
 
           <div className="flex items-center gap-6">
-            <Link href="/" target="_blank" className="text-xs text-white/40 hover:text-[#99ccff] transition-colors border border-white/10 px-3 py-1.5 rounded hover:border-[#99ccff]/30">
+            <Link href="/" target="_blank" className="text-xs text-white/40 hover:text-[#99ccff] transition-colors border border-white/10 px-3 py-1.5 rounded hover:border-[#99ccff]/30 font-bold">
               OPEN LIVE SITE ↗
             </Link>
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
-                <div className="text-xs font-bold text-white/80">ADMIN</div>
-                <div className="text-[10px] text-white/40">omnivoid.labs@system</div>
+                <div className="text-xs font-bold text-[#99ccff]">ADMINISTRATOR</div>
+                <div className="text-[10px] text-white/50 font-mono">{userEmail}</div>
               </div>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] border border-[#333333] flex items-center justify-center text-lg shadow-xl shadow-black/50">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#99ccff]/20 to-[#0a0a0a] border border-[#99ccff]/30 flex items-center justify-center text-lg shadow-xl shadow-black/50">
                 👽
               </div>
             </div>

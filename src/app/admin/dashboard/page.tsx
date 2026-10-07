@@ -50,10 +50,10 @@ export default function DashboardPage() {
   }, []);
 
   const statCards = [
-    { label: 'Total Rituals', value: stats?.gigs || 0, icon: '🎸', color: 'text-blue-400' },
-    { label: 'Active Links', value: stats?.links || 0, icon: '🔗', color: 'text-[#99ccff]' },
-    { label: 'Research Papers', value: stats?.documents || 0, icon: '📄', color: 'text-purple-400' },
-    { label: 'Event Editions', value: stats?.editions || 0, icon: '📁', color: 'text-emerald-400' },
+    { label: 'Event Editions', value: stats?.editions || 0, icon: '🏛️', color: 'text-emerald-400' },
+    { label: 'Info Pages (Text)', value: stats?.documents || 0, icon: '📄', color: 'text-[#99ccff]' },
+    { label: 'Active Transmissions', value: stats?.links || 0, icon: '🔗', color: 'text-purple-400' },
+    { label: 'Gig Performances', value: stats?.gigs || 0, icon: '🎸', color: 'text-blue-400' },
   ];
 
   return (
@@ -70,7 +70,7 @@ export default function DashboardPage() {
             <h1 className="text-3xl font-bold tracking-tight text-white">System Overview</h1>
           </motion.div>
           <p className="text-white/40 text-sm font-mono tracking-wide">
-            Welcome back, Administrator. All systems are functioning within normal parameters.
+            Welcome back, Administrator. Manage editions, info pages, research documents, and audio streams independently.
           </p>
         </section>
 
@@ -111,18 +111,18 @@ export default function DashboardPage() {
             className="bg-gradient-to-br from-[#0a0a0a] to-[#050505] border border-[#1a1a1a] rounded-3xl p-8 relative overflow-hidden group"
           >
             <div className="absolute top-0 right-0 p-8 text-6xl opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-500">➕</div>
-            <h3 className="text-xl font-bold text-white mb-2">Quick Publication</h3>
-            <p className="text-sm text-white/40 mb-8 max-w-xs">Instantly add new content to the Omnivoid network from here.</p>
+            <h3 className="text-xl font-bold text-white mb-2">Quick Management</h3>
+            <p className="text-sm text-white/40 mb-8 max-w-sm">Direct shortcuts to add or edit independent content sections.</p>
             
             <div className="flex flex-wrap gap-3">
-              <Link href="/admin/gigs" className="px-4 py-2 bg-[#99ccff]/10 hover:bg-[#99ccff]/20 text-[#99ccff] border border-[#99ccff]/20 rounded-lg text-xs font-bold transition-all">
-                ADD RITUAL
-              </Link>
-              <Link href="/admin/links" className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/80 border border-white/10 rounded-lg text-xs font-bold transition-all">
-                ADD TRANSMISSION
+              <Link href="/admin/editions" className="px-4 py-2 bg-[#99ccff]/10 hover:bg-[#99ccff]/20 text-[#99ccff] border border-[#99ccff]/20 rounded-lg text-xs font-bold transition-all">
+                + NEW EDITION
               </Link>
               <Link href="/admin/documents" className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/80 border border-white/10 rounded-lg text-xs font-bold transition-all">
-                UPLOAD RESEARCH
+                EDIT CONUNDRUM / CONTACT
+              </Link>
+              <Link href="/admin/resources" className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white/80 border border-white/10 rounded-lg text-xs font-bold transition-all">
+                UPLOAD RESEARCH PDF / MP3
               </Link>
             </div>
           </motion.div>
