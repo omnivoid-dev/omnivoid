@@ -251,20 +251,91 @@ export default function Home() {
         `;
         return { content: html, tabs: [] };
 
-      case 'gigs':
+      case 'gigs': {
+        const currentEditionObj = content.editions.find(e => e.id === selectedEditionId) || content.editions[0];
+        const editionVideos = content.links.filter(l => (l.editionId === selectedEditionId || !l.editionId) && l.linkType === 'YOUTUBE');
+        const editionGallery = content.resources.filter(r => r.editionId === selectedEditionId);
+        const gigData = content.latestGig;
+
         html = `
-          <div class="flex flex-col items-center justify-center h-full text-center p-8 space-y-4">
-            <div class="w-32 h-32 border border-[#99ccff]/20 rounded-full flex items-center justify-center animate-pulse">
-               <img src="/logo.svg" class="w-16 opacity-30" />
+          <div class="space-y-6 font-mono">
+            <div class="p-4 bg-[#99ccff]/10 border border-[#99ccff]/30 rounded-lg flex items-center justify-between">
+              <div>
+                <span class="text-[10px] text-[#99ccff] tracking-widest uppercase font-bold">CURRENT EDITION</span>
+                <h3 class="text-lg font-bold text-white mb-0.5">${currentEditionObj?.name || 'OMNIVOID RITUAL'}</h3>
+                <p class="text-xs text-white/50">${currentEditionObj?.slug ? `SLUG: /${currentEditionObj.slug}` : 'LIVE PERFORMANCE ARCHIVE'}</p>
+              </div>
+              <span class="text-xs px-3 py-1 bg-[#99ccff] text-[#050505] font-bold rounded-full">ACTIVE EDITION</span>
             </div>
-            <div>
-              <p class="text-sm font-bold text-[#99ccff] mb-1 uppercase tracking-widest">Ritual Protocol</p>
-              <p class="text-[10px] text-white/40 font-mono">Synchronizing edition data with live performance history...</p>
+
+            <!-- Event Poster & Details -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="bg-black/40 border border-white/10 rounded-lg p-4 flex flex-col items-center justify-center text-center">
+                <div class="w-full aspect-[3/4] bg-white/5 rounded border border-white/10 flex items-center justify-center mb-3 relative overflow-hidden group">
+                  ${gigData?.images && gigData.images[0] ? `
+                    <img src="${gigData.images[0]}" alt="Poster" class="w-full h-full object-cover" />
+                  ` : `
+                    <div class="text-center p-6">
+                      <span class="text-4xl mb-2 block">🖼️</span>
+                      <p class="text-xs text-[#99ccff] font-bold">${currentEditionObj?.name || 'EDITION POSTER'}</p>
+                      <p class="text-[10px] text-white/40 mt-1">MAIN RITUAL ARTWORK</p>
+                    </div>
+                  `}
+                </div>
+                <span class="text-xs text-[#99ccff] font-bold uppercase tracking-wider">MAIN EVENT POSTER</span>
+              </div>
+
+              <!-- Workshop & Lineup -->
+              <div class="space-y-4">
+                <div class="p-4 bg-white/5 border border-white/10 rounded-lg space-y-2">
+                  <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">🛠️ WORKSHOP DETAILS</span>
+                  <h4 class="text-sm font-bold text-white">${gigData?.workshopTitle || 'SYNTHESIS & AUDIO VISUAL WORKSHOP'}</h4>
+                  <p class="text-xs text-white/60 leading-relaxed">${gigData?.workshopDescription || 'Hands-on sound design, WebGL shader modulation, and audio reactive geometry assembly.'}</p>
+                  ${gigData?.workshopMaterials ? `
+                    <div class="pt-2 text-[10px] text-[#99ccff]/80 font-mono">
+                      <strong>REQUIRED MATERIALS:</strong> ${Array.isArray(gigData.workshopMaterials) ? gigData.workshopMaterials.join(', ') : gigData.workshopMaterials}
+                    </div>
+                  ` : ''}
+                </div>
+
+                <div class="p-4 bg-white/5 border border-white/10 rounded-lg space-y-2">
+                  <span class="text-[10px] text-[#99ccff] font-bold uppercase tracking-widest">🎭 PERFORMERS & LINEUP</span>
+                  <div class="space-y-1.5 pt-1">
+                    <div class="flex justify-between items-center text-xs">
+                      <span class="text-white font-bold">OMNIVOID AUDIO COLLECTIVE</span>
+                      <span class="text-[10px] text-white/40">LIVE SET & VISUALS</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                      <span class="text-white font-bold">QUANTUM CLIMB LABS</span>
+                      <span class="text-[10px] text-white/40">ANALOG SYNTHESIS</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <button class="px-6 py-2 bg-white/5 border border-white/10 rounded font-mono text-[10px] text-white/60 hover:text-[#99ccff] hover:border-[#99ccff]/40 transition-all">VIEW ARCHIVE</button>
+
+            <!-- YouTube Videos for this Edition -->
+            <div class="pt-2">
+              <h4 class="text-xs font-bold text-[#99ccff] uppercase tracking-widest mb-3">📡 TRANSMISSION VIDEOS (${editionVideos.length})</h4>
+              <div class="space-y-2">
+                ${editionVideos.map(vid => `
+                  <div 
+                    onclick="window.openYouTube('${vid.path}')"
+                    class="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded hover:border-[#99ccff]/50 cursor-pointer transition-all group"
+                  >
+                    <div class="flex items-center gap-3">
+                      <span class="text-lg">📺</span>
+                      <span class="text-xs font-bold text-white group-hover:text-[#99ccff]">${vid.title}</span>
+                    </div>
+                    <span class="text-[10px] px-2 py-1 bg-[#99ccff]/10 text-[#99ccff] border border-[#99ccff]/20 rounded">WATCH ▶</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
           </div>
         `;
         return { content: html, tabs: [] };
+      }
 
       default:
         return { content: 'CONTENT_UNAVAILABLE', tabs: [] };

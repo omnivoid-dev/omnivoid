@@ -16,11 +16,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const navItems = [
     { label: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
-    { label: 'Editions', href: '/admin/editions', icon: '📁' },
-    { label: 'Gigs', href: '/admin/gigs', icon: '🎸' },
-    { label: 'Links', href: '/admin/links', icon: '🔗' },
-    { label: 'Documents', href: '/admin/documents', icon: '📄' },
-    { label: 'Resources', href: '/admin/resources', icon: '🖼️' },
+    { label: 'Editions & Rituals', href: '/admin/editions', icon: '🏛️' },
+    { label: 'Info Pages (Text)', href: '/admin/documents', icon: '📄' },
+    { label: 'Research PDFs', href: '/admin/resources', icon: '📚' },
+    { label: 'Gigs & Lineups', href: '/admin/gigs', icon: '🎸' },
+    { label: 'Links & Transmissions', href: '/admin/links', icon: '🔗' },
     { label: 'Settings', href: '/admin/settings', icon: '⚙️' },
   ];
 
