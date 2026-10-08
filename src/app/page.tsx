@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RetroWindow, Tab } from '@/components/RetroWindow';
+import { WindowShell, type ShellSection } from '@/components/shell/WindowShell';
+import { ResearchSection, ConundrumSection, ContactSection, GallerySection } from '@/components/sections/StaticSections';
+import { ProfilesSection } from '@/components/sections/ProfilesSection';
 import { SplashScreen } from '@/components/SplashScreen';
 import { StartScreen } from '@/components/StartScreen';
 import { AgentSystem } from '@/components/AgentSystem';
@@ -11,12 +13,12 @@ import { useAudioAnalyzer } from '@/hooks/useAudioAnalyzer';
 import { AudioPlayerWindow, AudioTrack } from '@/components/AudioPlayerWindow';
 import { AgentOverlay } from '@/components/AgentOverlay';
 import { TintedImage } from '@/components/TintedImage';
-import { DEFAULT_LOGO_URL, LOGO_ASPECT, MENU_ICON_SLOTS, iconUrlFor, resolveBranding, type SiteBranding } from '@/lib/branding';
+import { DEFAULT_LOGO_URL, LOGO_ASPECT, MENU_ICON_SLOTS, iconUrlFor, menuLabelFor, resolveBranding, type SiteBranding } from '@/lib/branding';
 import { RitualsWindow } from '@/components/edition/RitualsWindow';
 import { TransmissionsWindow } from '@/components/edition/TransmissionsWindow';
 import { RadioWindow, type PublicRadioShow } from '@/components/edition/RadioWindow';
 import { mixcloudEmbedSrc } from '@/lib/mixcloud';
-import type { PublicEdition } from '@/components/edition/types';
+import type { PublicEdition, PublicProfile } from '@/components/edition/types';
 
 interface ContentItem {
   id: string;
@@ -40,6 +42,7 @@ interface ContentStructure {
   documents: ContentItem[];
   resources: any[];
   radioShows?: PublicRadioShow[];
+  profiles?: PublicProfile[];
   branding?: SiteBranding;
   conundrumText?: string;
   contactInfo?: { contactEmail: string; submissionsEmail: string };
@@ -47,42 +50,37 @@ interface ContentStructure {
   currentEdition: any | null;
 }
 
-interface MenuSection {
-  id: string;
-  label: string;
-  icon: string;
-  type: 'documents' | 'audio' | 'gallery' | 'gigs' | 'links' | 'resources';
-  categoryId?: string;
-  resourceType?: string;
-  docType?: string;
-  windowPosition: { top: string; left: string };
-}
+// Section order in the window's navigation strip and the Start menu.
+// Profile sections only appear once they have something to show.
+const SECTION_ORDER = [
+  'rituals',
+  'transmissions',
+  'radio',
+  'labs',
+  'performers',
+  'collaborators',
+  'affiliates',
+  'research',
+  'gallery',
+  'conundrum',
+  'contact',
+];
+
+const PROFILE_SECTIONS: Record<string, { type: PublicProfile['type']; heading: string }> = {
+  performers: { type: 'PERFORMER', heading: 'PERFORMERS' },
+  collaborators: { type: 'COLLABORATOR', heading: 'COLLABORATORS' },
+  affiliates: { type: 'AFFILIATE', heading: 'AFFILIATES' },
+};
+
+const SECTION_FOR_PROFILE_TYPE: Record<PublicProfile['type'], string> = {
+  PERFORMER: 'performers',
+  COLLABORATOR: 'collaborators',
+  AFFILIATE: 'affiliates',
+};
 
 // Tracks served from /public/audio (no database entry needed)
 const BUILT_IN_TRACKS: AudioTrack[] = [
   { id: 'builtin-47k-phase-01', title: '47K - Phase 01', artist: '47K', url: '/audio/47K_Phase_01.mp3', editionName: '47K' },
-];
-
-const windowGridPositions: Record<string, { top: string; left: string }> = {
-  'research': { top: '50vh', left: '50vw' },
-  'rituals': { top: '50vh', left: '50vw' },
-  'transmissions': { top: '50vh', left: '50vw' },
-  'radio': { top: '50vh', left: '50vw' },
-  'labs': { top: '50vh', left: '50vw' },
-  'gallery': { top: '50vh', left: '50vw' },
-  'conundrum': { top: '50vh', left: '50vw' },
-  'contact': { top: '50vh', left: '50vw' },
-};
-
-const menuSections: MenuSection[] = [
-  { id: 'research', label: 'RESEARCH', icon: '📚', type: 'documents', docType: 'RESEARCH', windowPosition: windowGridPositions['research'] },
-  { id: 'rituals', label: 'RITUALS', icon: '🎸', type: 'gigs', windowPosition: windowGridPositions['rituals'] },
-  { id: 'transmissions', label: 'TRANSMISSIONS', icon: '📡', type: 'links', categoryId: 'live_transmissions', windowPosition: windowGridPositions['transmissions'] },
-  { id: 'radio', label: 'RADIO', icon: '📻', type: 'links', categoryId: 'radio', windowPosition: windowGridPositions['radio'] },
-  { id: 'gallery', label: 'GALLERY', icon: '🖼️', type: 'resources', resourceType: 'GALLERY', windowPosition: windowGridPositions['gallery'] },
-  { id: 'labs', label: 'LABS', icon: '🧪', type: 'links', categoryId: 'labs', windowPosition: windowGridPositions['labs'] },
-  { id: 'conundrum', label: 'CONUNDRUM', icon: '🧩', type: 'documents', docType: 'CONUNDRUM', windowPosition: windowGridPositions['conundrum'] },
-  { id: 'contact', label: 'CONTACT', icon: '📧', type: 'documents', docType: 'CONTACT', windowPosition: windowGridPositions['contact'] },
 ];
 
 export default function Home() {
@@ -91,9 +89,9 @@ export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [content, setContent] = useState<ContentStructure | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [openWindows, setOpenWindows] = useState<Record<string, boolean>>({});
-  const [windowContents, setWindowContents] = useState<Record<string, string>>({});
-  const [windowTabs, setWindowTabs] = useState<Record<string, Tab[]>>({});
+  const [shellOpen, setShellOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState('rituals');
+  const [profileFocus, setProfileFocus] = useState<string | null>(null);
   const [selectedEditionId, setSelectedEditionId] = useState<string | null>(null);
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
   const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
@@ -108,6 +106,8 @@ export default function Home() {
   const { connectAudioElement, getAudioData } = useAudioAnalyzer();
 
   const agentSystemRef = useRef<AgentSystem | null>(null);
+
+  const branding = resolveBranding(content?.branding);
 
   useEffect(() => {
     fetch('/api/content')
@@ -137,6 +137,29 @@ export default function Home() {
     agentSystemRef.current?.setAudioSource(getAudioData);
   }, [isSplashComplete, getAudioData]);
 
+  // Deep link: /?section=rituals opens the window on that section once the site is ready
+  const initialSectionRef = useRef<string | null>(null);
+  useEffect(() => {
+    initialSectionRef.current = new URLSearchParams(window.location.search).get('section');
+  }, []);
+
+  useEffect(() => {
+    const wanted = initialSectionRef.current;
+    if (wanted && isSplashComplete && content && SECTION_ORDER.includes(wanted)) {
+      initialSectionRef.current = null;
+      setActiveSection(wanted);
+      setShellOpen(true);
+    }
+  }, [isSplashComplete, content]);
+
+  useEffect(() => {
+    if (initialSectionRef.current) return; // do not clobber the link before it has been applied
+    const url = new URL(window.location.href);
+    if (shellOpen) url.searchParams.set('section', activeSection);
+    else url.searchParams.delete('section');
+    window.history.replaceState(null, '', url.toString());
+  }, [shellOpen, activeSection]);
+
   // Expose global functions for media links
   useEffect(() => {
     (window as any).openYouTube = (url: string) => {
@@ -146,24 +169,6 @@ export default function Home() {
       setActiveAudioUrl(url);
     };
   }, []);
-
-  useEffect(() => {
-    if (content) {
-      const updatedContents: Record<string, string> = {};
-      const updatedTabs: Record<string, Tab[]> = {};
-
-      menuSections.forEach(section => {
-        if (openWindows[section.id]) {
-          const { content: c, tabs: t } = formatSectionContent(section);
-          updatedContents[section.id] = c;
-          updatedTabs[section.id] = t;
-        }
-      });
-
-      setWindowContents(prev => ({ ...prev, ...updatedContents }));
-      setWindowTabs(prev => ({ ...prev, ...updatedTabs }));
-    }
-  }, [selectedEditionId, content]);
 
   // Collect audio tracks from database resources, plus the built-in demo track
   const dbTracks: AudioTrack[] = (content?.resources || [])
@@ -181,116 +186,50 @@ export default function Home() {
     }));
   const audioTracks: AudioTrack[] = [...BUILT_IN_TRACKS, ...dbTracks];
 
-  const formatSectionContent = (section: MenuSection): { content: string; tabs: Tab[] } => {
-    if (!content) return { content: '', tabs: [] };
+  const profiles = content?.profiles || [];
 
-    let items: any[] = [];
-    let html = '';
+  // Sections that currently have something to show
+  const visibleSectionIds = SECTION_ORDER.filter((id) => {
+    const profileSection = PROFILE_SECTIONS[id];
+    return profileSection ? profiles.some((p) => p.type === profileSection.type) : true;
+  });
 
-    switch (section.type) {
-      case 'documents':
-        if (section.docType === 'CONUNDRUM') {
-          html = `
-            <div class="prose prose-invert max-w-none font-mono text-xs leading-relaxed text-[#99ccff]">
-              <div class="flex items-center gap-2 border-b border-[#99ccff]/30 pb-3 mb-4">
-                <span class="text-xl">🧩</span>
-                <h3 class="text-base font-bold text-white uppercase tracking-widest">ABOUT OMNIVOID (CONUNDRUM)</h3>
-              </div>
-              <div class="whitespace-pre-wrap text-white/90 leading-relaxed font-mono bg-white/5 p-4 rounded-lg border border-white/10">
-                ${(content as any).conundrumText || 'OMNIVOID is an autonomous sonic & visual research lab.'}
-              </div>
-            </div>
-          `;
-        } else if (section.docType === 'CONTACT') {
-          const contactInfo = (content as any).contactInfo || { contactEmail: 'contact@omnivoid.dev', submissionsEmail: 'submissions@omnivoid.dev' };
-          html = `
-            <div class="font-mono space-y-6">
-              <div class="flex items-center gap-2 border-b border-[#99ccff]/30 pb-3">
-                <span class="text-xl">📧</span>
-                <h3 class="text-base font-bold text-white uppercase tracking-widest">CONTACT & SUBMISSIONS</h3>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="p-5 bg-white/5 border border-white/10 rounded-xl space-y-2 hover:border-[#99ccff]/40 transition-all">
-                  <span class="text-[10px] text-[#99ccff] font-bold uppercase tracking-widest block">GENERAL ENQUIRIES</span>
-                  <a href="mailto:${contactInfo.contactEmail}" class="text-sm font-bold text-white hover:text-[#99ccff] transition-colors break-all">
-                    ${contactInfo.contactEmail}
-                  </a>
-                  <p class="text-[10px] text-white/40 pt-1">For general inquiries, collaborations, and media access.</p>
-                </div>
-
-                <div class="p-5 bg-white/5 border border-white/10 rounded-xl space-y-2 hover:border-[#99ccff]/40 transition-all">
-                  <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest block">TRACK & DEMO SUBMISSIONS</span>
-                  <a href="mailto:${contactInfo.submissionsEmail}" class="text-sm font-bold text-white hover:text-emerald-400 transition-colors break-all">
-                    ${contactInfo.submissionsEmail}
-                  </a>
-                  <p class="text-[10px] text-white/40 pt-1">For audio submissions, stems, and mix proposals.</p>
-                </div>
-              </div>
-            </div>
-          `;
-        } else {
-          // RESEARCH PAPERS & DOCUMENTS
-          items = content.documents.filter(d => d.type === 'RESEARCH');
-          html = `
-            <div class="space-y-4 font-mono">
-              ${items.length === 0 ? '<p class="text-white/40">No research papers available in this iteration.</p>' : ''}
-              ${items.map(doc => `
-                <div class="p-4 bg-white/5 border border-white/10 rounded-lg group hover:border-[#99ccff]/50 transition-all flex gap-4">
-                  ${doc.thumbnailUrl ? `<img src="${doc.thumbnailUrl}" alt="" class="w-20 h-28 object-cover rounded border border-white/10 shrink-0" />` : ''}
-                  <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between mb-2">
-                    <h4 class="text-[#99ccff] font-bold text-xs">${doc.title}</h4>
-                    <span class="text-[9px] px-2 py-0.5 rounded bg-white/10 text-white/60 font-bold">PDF DOCUMENT</span>
-                  </div>
-                  <p class="text-[10px] text-white/50 mb-3">${doc.excerpt || 'Research artifact from the OMNIVOID repository.'}</p>
-                  <div class="flex justify-between items-center">
-                    <span class="text-[9px] text-white/30 font-mono">ID: ${doc.id.slice(-8)}</span>
-                    ${doc.fileUrl ? `
-                      <a href="${doc.fileUrl}" target="_blank" class="text-[10px] px-3 py-1 bg-[#99ccff] text-[#050505] font-bold rounded hover:bg-[#7ab8e6]">DOWNLOAD PDF ↗</a>
-                    ` : `
-                      <button class="text-[10px] px-3 py-1 bg-[#99ccff]/10 text-[#99ccff] border border-[#99ccff]/20 rounded">ACCESS DATA</button>
-                    `}
-                  </div>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          `;
-        }
-        return { content: html, tabs: [] };
-
-      case 'resources':
-        items = content.resources.filter(r => r.type === 'document' || r.type === 'pdf' || r.type === 'doc');
-        html = `
-          <div class="space-y-3 font-mono">
-             ${items.length === 0 ? '<p class="text-white/40">No research PDF assets found.</p>' : ''}
-             ${items.map(res => `
-              <div class="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded group hover:border-[#99ccff]/40 transition-all">
-                <div class="flex items-center gap-3">
-                  <span class="text-xl">📄</span>
-                  <div>
-                    <div class="text-[11px] font-bold text-white">${res.title}</div>
-                    <div class="text-[9px] text-[#99ccff]/50 font-mono">PDF RESEARCH ARTIFACT</div>
-                  </div>
-                </div>
-                ${res.path ? `
-                  <a href="${res.path}" target="_blank" class="text-[10px] px-3 py-1 bg-[#99ccff]/10 text-[#99ccff] border border-[#99ccff]/20 rounded hover:bg-[#99ccff]/20">VIEW PDF ↗</a>
-                ` : ''}
-              </div>
-            `).join('')}
-          </div>
-        `;
-        return { content: html, tabs: [] };
-
-      default:
-        return { content: 'CONTENT_UNAVAILABLE', tabs: [] };
-    }
+  const openSection = (id: string, focusProfile: string | null = null) => {
+    setActiveSection(id);
+    setProfileFocus(focusProfile);
+    setShellOpen(true);
+    setIsMenuOpen(false);
   };
 
-  const renderLiveSection = (sectionId: string) => {
+  const openProfile = (profileId: string) => {
+    const profile = profiles.find((p) => p.id === profileId);
+    if (profile) openSection(SECTION_FOR_PROFILE_TYPE[profile.type], profile.id);
+  };
+
+  const openEdition = (editionId: string) => {
+    setSelectedEditionId(editionId);
+    openSection('rituals');
+  };
+
+  const renderSection = (sectionId: string) => {
     if (!content) return null;
     const play = (url: string) => setActiveVideoUrl(url);
+
+    const profileSection = PROFILE_SECTIONS[sectionId];
+    if (profileSection) {
+      return (
+        <ProfilesSection
+          profiles={profiles}
+          type={profileSection.type}
+          heading={menuLabelFor(branding, sectionId)}
+          icon={MENU_ICON_SLOTS.find((sl) => sl.id === sectionId)?.fallback || ''}
+          focusId={profileFocus}
+          onFocus={setProfileFocus}
+          onOpenEdition={openEdition}
+        />
+      );
+    }
+
     switch (sectionId) {
       case 'rituals':
         return (
@@ -299,30 +238,37 @@ export default function Home() {
             selectedEditionId={selectedEditionId}
             onSelectEdition={setSelectedEditionId}
             onPlayVideo={play}
+            profiles={profiles}
+            onOpenProfile={openProfile}
           />
         );
       case 'transmissions':
         return <TransmissionsWindow editions={content.editions} kinds={['SET', 'WORKSHOP', 'OTHER']} title="Transmissions" onPlayVideo={play} />;
-      case 'radio':
-        return <RadioWindow shows={content.radioShows || []} />;
       case 'labs':
         return <TransmissionsWindow editions={content.editions} kinds={['LABS']} title="Labs sessions" onPlayVideo={play} />;
+      case 'radio':
+        return <RadioWindow shows={content.radioShows || []} />;
+      case 'research':
+        return <ResearchSection documents={content.documents.filter((d) => d.type === 'RESEARCH')} />;
+      case 'gallery':
+        return <GallerySection items={content.gallery.filter((g) => g.type === 'image')} />;
+      case 'conundrum':
+        return <ConundrumSection text={content.conundrumText || 'OMNIVOID is an autonomous sonic & visual research lab.'} />;
+      case 'contact':
+        return <ContactSection info={content.contactInfo || { contactEmail: 'contact@omnivoid.dev', submissionsEmail: 'submissions@omnivoid.dev' }} />;
       default:
         return null;
     }
   };
 
-  const openWindow = (section: MenuSection) => {
-    setIsMenuOpen(false);
-    if (openWindows[section.id]) {
-      setOpenWindows(prev => ({ ...prev, [section.id]: false }));
-      return;
-    }
-    
-    const { content: c, tabs: t } = formatSectionContent(section);
-    setWindowContents(prev => ({ ...prev, [section.id]: c }));
-    setWindowTabs(prev => ({ ...prev, [section.id]: t }));
-    setOpenWindows(prev => ({ ...prev, [section.id]: true }));
+  // Section icon from branding (uploaded or built-in), else the emoji fallback
+  const renderIcon = (sectionId: string, size = 22) => {
+    const url = iconUrlFor(branding, sectionId);
+    return url ? (
+      <TintedImage src={url} tint={branding.iconTint} alt="" style={{ width: size, height: size }} />
+    ) : (
+      <span style={{ fontSize: size - 4 }}>{MENU_ICON_SLOTS.find((sl) => sl.id === sectionId)?.fallback}</span>
+    );
   };
 
   const getYouTubeId = (url: string) => {
@@ -338,8 +284,6 @@ export default function Home() {
   if (!isSplashComplete) {
     return <SplashScreen onComplete={() => setIsSplashComplete(true)} />;
   }
-
-  const branding = resolveBranding(content?.branding);
 
   const selectedEditionName = content?.editions.find(e => e.id === selectedEditionId)?.name;
 
@@ -376,23 +320,20 @@ export default function Home() {
         </motion.div>
       </div>
 
-      {/* Retro Windows */}
-      <div className="relative z-50 flex-1">
-        {menuSections.map(section => (
-          <RetroWindow
-            key={section.id}
-            id={section.id}
-            title={`${section.label} [V4] - ${selectedEditionName || '...'}`}
-            content={windowContents[section.id] || ''}
-            isOpen={openWindows[section.id] || false}
-            onClose={() => setOpenWindows(prev => ({ ...prev, [section.id]: false }))}
-            position={section.windowPosition}
-            tabs={windowTabs[section.id] || []}
-          >
-            {renderLiveSection(section.id)}
-          </RetroWindow>
-        ))}
-      </div>
+      {/* Shared window: sections swap inside it */}
+      <WindowShell
+        isOpen={shellOpen}
+        onClose={() => setShellOpen(false)}
+        title={`${menuLabelFor(branding, activeSection)} // ${
+          profileFocus ? profiles.find((p) => p.id === profileFocus)?.name || '...' : selectedEditionName || '...'
+        }`}
+        sections={visibleSectionIds.map<ShellSection>((id) => ({ id, label: menuLabelFor(branding, id), icon: renderIcon(id) }))}
+        activeId={activeSection}
+        onSelect={(id) => openSection(id)}
+        onBack={profileFocus ? () => setProfileFocus(null) : undefined}
+      >
+        <div key={`${activeSection}:${profileFocus ?? ''}`}>{renderSection(activeSection)}</div>
+      </WindowShell>
 
       {/* Audio Player Window */}
       <AudioPlayerWindow
@@ -471,21 +412,16 @@ export default function Home() {
                 <span className="text-lg">🎧</span> AUDIO STREAM PLAYER
               </button>
               <div className="h-[1px] bg-white/10 my-1" />
-              {menuSections.map(item => (
+              {visibleSectionIds.map((id) => (
                 <button
-                  key={item.id}
-                  onClick={() => openWindow(item)}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-white/60 hover:text-[#99ccff] hover:bg-white/5 rounded transition-all text-xs font-mono text-left"
+                  key={id}
+                  onClick={() => openSection(id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 hover:text-[#99ccff] hover:bg-white/5 rounded transition-all text-xs font-mono text-left ${
+                    shellOpen && activeSection === id ? 'text-[#99ccff] bg-white/5' : 'text-white/60'
+                  }`}
                 >
-                  {(() => {
-                    const url = iconUrlFor(branding, item.id);
-                    return url ? (
-                      <TintedImage src={url} tint={branding.iconTint} alt="" style={{ width: 22, height: 22 }} />
-                    ) : (
-                      <span className="text-lg w-[22px] text-center">{MENU_ICON_SLOTS.find(sl => sl.id === item.id)?.fallback ?? item.icon}</span>
-                    );
-                  })()}
-                  {item.label}
+                  {renderIcon(id)}
+                  {menuLabelFor(branding, id)}
                 </button>
               ))}
             </div>

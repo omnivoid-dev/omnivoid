@@ -1,13 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { PublicEdition, instagramUrl, youtubeChannelUrl } from './types';
+import { PublicEdition, PublicProfile, instagramUrl, youtubeChannelUrl } from './types';
 
 interface RitualsWindowProps {
   editions: PublicEdition[];
   selectedEditionId: string | null;
   onSelectEdition: (id: string) => void;
   onPlayVideo: (url: string) => void;
+  /** Shared performer profiles; lineup names with a profile open it in the window. */
+  profiles?: PublicProfile[];
+  onOpenProfile?: (profileId: string) => void;
 }
 
 const fmtDate = (v?: string | null) =>
@@ -27,7 +30,7 @@ function Poster({ url, alt, fallback }: { url?: string | null; alt: string; fall
   );
 }
 
-export function RitualsWindow({ editions, selectedEditionId, onSelectEdition, onPlayVideo }: RitualsWindowProps) {
+export function RitualsWindow({ editions, selectedEditionId, onSelectEdition, onPlayVideo, profiles = [], onOpenProfile }: RitualsWindowProps) {
   const [listOpen, setListOpen] = useState(false);
 
   const edition =
@@ -141,7 +144,16 @@ export function RitualsWindow({ editions, selectedEditionId, onSelectEdition, on
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {edition.performers.map((p) => (
               <div key={p.id} className="p-3 bg-black/50 border border-white/10 rounded space-y-1">
-                <span className="text-xs font-bold">{p.name}</span>
+                {(() => {
+                  const profile = profiles.find((x) => x.type === 'PERFORMER' && x.name.toLowerCase() === p.name.toLowerCase());
+                  return profile && onOpenProfile ? (
+                    <button onClick={() => onOpenProfile(profile.id)} className="text-xs font-bold text-left hover:text-[#99ccff] underline decoration-dotted underline-offset-4">
+                      {p.name}
+                    </button>
+                  ) : (
+                    <span className="text-xs font-bold">{p.name}</span>
+                  );
+                })()}
                 <div className="flex items-center gap-3 text-[10px]">
                   {p.instagram && (
                     <a href={instagramUrl(p.instagram)} target="_blank" rel="noopener noreferrer" className="text-[#99ccff] hover:underline">

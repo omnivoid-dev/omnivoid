@@ -15,6 +15,20 @@ export interface PublicTransmission {
   performerId?: string | null;
 }
 
+export interface PublicProfile {
+  id: string;
+  type: 'PERFORMER' | 'COLLABORATOR' | 'AFFILIATE';
+  name: string;
+  slug: string;
+  role?: string | null;
+  bio?: string | null;
+  imageUrl?: string | null;
+  website?: string | null;
+  instagram?: string | null;
+  youtube?: string | null;
+  editions: { id: string; name: string }[];
+}
+
 export interface PublicEdition {
   id: string;
   name: string;
