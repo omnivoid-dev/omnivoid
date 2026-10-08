@@ -4,7 +4,7 @@
  * the first parameter of every effect is `cell`, the render cell size in CSS pixels.
  */
 
-export type FxEffect = 'dither' | 'riso' | 'glitch' | 'ascii' | 'oscilloscope' | 'marquee';
+export type FxEffect = 'dither' | 'riso' | 'glitch' | 'ascii' | 'oscilloscope' | 'marquee' | 'goo';
 
 export interface ParamSpec {
   key: string;
@@ -40,6 +40,17 @@ export const FX_SPECS: Record<FxEffect, EffectSpec> = {
       { key: 'grain', label: 'ink dropout', min: 0, max: 1, step: 0.05, default: 0.35 },
       { key: 'field', label: 'field', min: 0, max: 1.5, step: 0.05, default: 0.7 },
       { key: 'contrast', label: 'contrast', min: 0.5, max: 3, step: 0.05, default: 1.4 },
+      { key: 'pulseGain', label: 'beat', min: 0, max: 2, step: 0.05, default: 1 },
+    ],
+  },
+  goo: {
+    label: 'Liquid metal',
+    params: [
+      { key: 'cell', label: 'cell px', min: 1, max: 4, step: 1, default: 2 },
+      { key: 'size', label: 'blob size', min: 0.5, max: 2, step: 0.05, default: 1 },
+      { key: 'thr', label: 'surface level', min: 0.2, max: 0.8, step: 0.01, default: 0.45 },
+      { key: 'shine', label: 'shine', min: 0, max: 2, step: 0.05, default: 1 },
+      { key: 'warp', label: 'warp', min: 0, max: 1, step: 0.05, default: 0.5 },
       { key: 'pulseGain', label: 'beat', min: 0, max: 2, step: 0.05, default: 1 },
     ],
   },
@@ -108,6 +119,7 @@ const FX_BY_PRESET: Record<string, FxEffect> = {
   'ascii-green': 'ascii',
   'oscilloscope-red': 'oscilloscope',
   vanity: 'marquee',
+  'ai-goo-red-metallic': 'goo',
   'glitch-print': 'glitch',
 };
 

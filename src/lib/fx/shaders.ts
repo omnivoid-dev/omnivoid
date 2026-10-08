@@ -550,7 +550,118 @@ void main() {
 }
 `;
 
-export const FRAGMENT_SHADERS: Record<FxEffect | 'ascii-luma' | 'oscilloscope-trail' | 'marquee-luma', string> = {
+/**
+ * Liquid metal, pass 1: a smooth "goo field" at low resolution (one pixel per ~4 render px).
+ * Sum of drifting metaballs + the agents (blurred into blobs) + a blob under the cursor, domain-warped by noise.
+ * Output: R = field (soft-clipped), G = agent presence (for sparkle).
+ * uP0 = (cell, blob size, surface level, shine), uP1 = (warp, beat gain).
+ */
+const GOO_FIELD = `
+uniform vec2 uGrid;
+
+void main() {
+  float sizeP = uP0.y;
+  float warp = uP1.x;
+  float pulseGain = uP1.y;
+
+  vec2 uv = (gl_FragCoord.xy + 0.5) / uGrid;
+  float aspect = uRes.x / uRes.y;
+  vec2 p = vec2(uv.x * aspect, uv.y);
+  float t = uTime;
+
+  p += warp * 0.07 * vec2(noise(p * 3.0 + t * 0.15), noise(p * 3.0 + 7.0 - t * 0.12)) ;
+
+  float F = 0.0;
+  for (int i = 0; i < 5; i++) {
+    float fi = float(i);
+    vec2 c = vec2(aspect * (0.5 + 0.34 * sin(t * 0.13 * (1.0 + fi * 0.3) + fi * 1.7)),
+                  0.5 + 0.32 * cos(t * 0.11 * (1.0 + fi * 0.27) + fi * 2.3));
+    float r = (0.10 + 0.03 * fi) * sizeP * (1.0 + uPulse * pulseGain * 0.3);
+    vec2 d = p - c;
+    F += r * r / (dot(d, d) + 0.0008);
+  }
+  F *= 0.35;
+
+  // Agents blurred into small blobs
+  float a = texture2D(uTex, uv).a;
+  for (int i = 0; i < 8; i++) {
+    float ang = float(i) * 0.785398;
+    vec2 o = vec2(cos(ang), sin(ang));
+    a += texture2D(uTex, uv + o * vec2(0.006, 0.011)).a * 0.8;
+    a += texture2D(uTex, uv + o * vec2(0.014, 0.025)).a * 0.4;
+  }
+  a = clamp(a * 0.28, 0.0, 1.0);
+  F += a * 0.55;
+
+  if (uMouseActive > 0.5) {
+    vec2 d = (uv - uMouse) * vec2(aspect, 1.0);
+    F += 0.012 * sizeP / (dot(d, d) + 0.004);
+  }
+
+  gl_FragColor = vec4(1.0 - exp(-F * 1.2), a, 0.0, 1.0);
+}
+`;
+
+/**
+ * Liquid metal, pass 2: the field is a chrome surface. Normals from the field's gradient give a fake
+ * environment reflection: black chrome with red bands, silver softboxes, a moving specular, and a fresnel rim.
+ * Outside the goo, a dark background with a faint red halo. Agents add sparkle on the surface.
+ */
+const GOO_DISPLAY = `
+uniform sampler2D uLuma;
+uniform vec2 uGrid;
+
+vec3 envMap(vec3 r, float t) {
+  float y = r.y * 0.5 + 0.5;
+  vec3 c = vec3(0.012);
+  c += uInk * smoothstep(0.55, 0.82, y) * 0.95;                       // red band above
+  c += uInk * 0.38 * smoothstep(0.30, 0.0, abs(y - 0.26));             // red strip below
+  vec2 b1 = r.xy - vec2(0.45 * sin(t * 0.3), 0.55);                    // overhead softbox
+  c += uAccent * smoothstep(0.24, 0.0, length(b1 * vec2(0.7, 1.8))) * 1.3;
+  vec2 b2 = r.xy - vec2(-0.5, -0.1 + 0.1 * cos(t * 0.25));             // side strip
+  c += uAccent * smoothstep(0.18, 0.0, length(b2 * vec2(2.2, 0.8))) * 0.8;
+  return c;
+}
+
+void main() {
+  float thr = uP0.z;
+  float shine = uP0.w;
+  float pulseGain = uP1.y;
+
+  vec2 uv = vUv;
+  vec2 texel = 1.0 / uGrid;
+  float F = texture2D(uLuma, uv).r;
+  float Fx = texture2D(uLuma, uv + vec2(texel.x * 2.0, 0.0)).r - texture2D(uLuma, uv - vec2(texel.x * 2.0, 0.0)).r;
+  float Fy = texture2D(uLuma, uv + vec2(0.0, texel.y * 2.0)).r - texture2D(uLuma, uv - vec2(0.0, texel.y * 2.0)).r;
+  float spark = texture2D(uLuma, uv).g;
+
+  float mask = smoothstep(thr - 0.025, thr + 0.025, F);
+  vec3 n = normalize(vec3(-Fx * 7.0, -Fy * 7.0, 1.0));
+  vec3 r = reflect(vec3(0.0, 0.0, -1.0), n);
+
+  float beat = uPulse * pulseGain;
+  vec3 metal = envMap(r, uTime) * shine * (1.0 + beat * 0.5);
+  float fres = pow(1.0 - n.z, 2.5);
+  metal += uInk * fres * 0.8;
+  float sp = pow(max(dot(r, normalize(vec3(-0.4 + 0.3 * sin(uTime * 0.4), 0.6, 0.7))), 0.0), 40.0);
+  metal += uAccent * sp * 1.5 * shine;
+  metal *= 0.5 + 0.5 * n.z;
+  metal += uAccent * pow(spark, 3.0) * 0.35;
+
+  float halo = smoothstep(thr - 0.3, thr, F);
+  vec3 bgc = uBg + uInk * 0.10 * halo * (1.0 + beat);
+
+  vec3 col = mix(bgc, metal, mask);
+  float aspect = uRes.x / uRes.y;
+  col *= mix(0.7, 1.0, smoothstep(1.3, 0.3, length((uv - 0.5) * vec2(aspect, 1.0))));
+  col += (hash(gl_FragCoord.xy + uTime) - 0.5) * 0.02;
+  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}
+`;
+
+export const FRAGMENT_SHADERS: Record<FxEffect | 'ascii-luma' | 'oscilloscope-trail' | 'marquee-luma' | 'goo-field', string> = {
+  goo: COMMON + GOO_DISPLAY,
+  'goo-field': COMMON + GOO_FIELD,
   marquee: COMMON + MARQUEE_DISPLAY,
   'marquee-luma': COMMON + MARQUEE_LUMA,
   oscilloscope: COMMON + OSC_DISPLAY,

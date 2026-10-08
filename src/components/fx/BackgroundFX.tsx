@@ -113,7 +113,7 @@ function ensureAtlas(state: GLState): WebGLTexture {
 }
 
 /** (Re)allocate the one-pixel-per-character render target when the grid size changes. */
-function ensureLuma(state: GLState, w: number, h: number) {
+function ensureLuma(state: GLState, w: number, h: number, linear = false) {
   const { gl } = state;
   let target = state.luma;
   if (!target) {
@@ -122,12 +122,17 @@ function ensureLuma(state: GLState, w: number, h: number) {
     target = { fbo, tex, w: 0, h: 0 };
     state.luma = target;
   }
+  // Filter depends on the effect (characters/bulbs want nearest, goo wants smooth)
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, target.tex);
+  const filter = linear ? gl.LINEAR : gl.NEAREST;
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.activeTexture(gl.TEXTURE0);
   if (target.w === w && target.h === h) return target;
 
   gl.activeTexture(gl.TEXTURE2);
   gl.bindTexture(gl.TEXTURE_2D, target.tex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
@@ -299,6 +304,7 @@ export function BackgroundFX({ effect, palette, getPulse, getWave, onActiveChang
         ensureAtlas(glRef.current);
       }
       if (effect === 'marquee') programFor(glRef.current, 'marquee-luma');
+      if (effect === 'goo') programFor(glRef.current, 'goo-field');
       if (effect === 'oscilloscope') {
         programFor(glRef.current, 'oscilloscope-trail');
         ensureWave(glRef.current);
@@ -373,14 +379,22 @@ export function BackgroundFX({ effect, palette, getPulse, getWave, onActiveChang
         gl.uniform1f(loc.uScale, scale);
       };
 
-      if (active === 'ascii' || active === 'marquee') {
+      if (active === 'ascii' || active === 'marquee' || active === 'goo') {
         // Pass 1: one pixel per cell (character or bulb; cheap, many taps), into a small target
-        const glyphW = (p0[1] || 9) / scale;
-        const glyphH = glyphW * (active === 'ascii' ? GLYPH_ASPECT : 1);
-        const gw = Math.max(1, Math.ceil(canvas.width / glyphW));
-        const gh = Math.max(1, Math.ceil(canvas.height / glyphH));
-        const target = ensureLuma(state, gw, gh);
-        const lumaProg = programFor(state, active === 'ascii' ? 'ascii-luma' : 'marquee-luma');
+        let gw: number;
+        let gh: number;
+        if (active === 'goo') {
+          // A fixed, coarse grid; the bilinear upscale makes the field smooth
+          gw = Math.max(8, Math.ceil(canvas.width / 4));
+          gh = Math.max(8, Math.ceil(canvas.height / 4));
+        } else {
+          const glyphW = (p0[1] || 9) / scale;
+          const glyphH = glyphW * (active === 'ascii' ? GLYPH_ASPECT : 1);
+          gw = Math.max(1, Math.ceil(canvas.width / glyphW));
+          gh = Math.max(1, Math.ceil(canvas.height / glyphH));
+        }
+        const target = ensureLuma(state, gw, gh, active === 'goo');
+        const lumaProg = programFor(state, active === 'ascii' ? 'ascii-luma' : active === 'marquee' ? 'marquee-luma' : 'goo-field');
 
         gl.useProgram(lumaProg.program);
         gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
