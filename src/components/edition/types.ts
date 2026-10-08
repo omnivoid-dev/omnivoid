@@ -47,7 +47,7 @@ export interface PublicEdition {
   workshopDateTime?: string | null;
   workshopPosterUrl?: string | null;
   workshopTicketUrl?: string | null;
-  themeColors?: { primary?: string; secondary?: string } | null;
+  themeColors?: { preset?: string; palette?: { bg?: string; ink?: string; accent?: string } } | null;
   isActive: boolean;
   sortOrder: number;
   performers: PublicPerformer[];

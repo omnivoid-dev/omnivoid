@@ -11,6 +11,8 @@ import { prisma } from '@/lib/prisma';
 import { getYouTubeId, youtubeThumbnail } from '@/lib/youtube';
 import { deleteIfUnreferenced } from '@/lib/storage';
 import { findOrCreatePerformerProfile } from '@/lib/profiles';
+import { sanitizeStoredTheme } from '@/lib/themes';
+import { Prisma } from '@prisma/client';
 
 export interface PerformerInput {
   key: string; // existing id or a client-side temp key
@@ -63,8 +65,14 @@ export async function saveEdition(id: string | null, body: any) {
   const transmissions: TransmissionInput[] = (body.transmissions || []).filter((t: TransmissionInput) => t.url?.trim());
 
   const before = id
-    ? await prisma.edition.findUnique({ where: { id }, select: { posterUrl: true, workshopPosterUrl: true } })
+    ? await prisma.edition.findUnique({ where: { id }, select: { posterUrl: true, workshopPosterUrl: true, themeColors: true } })
     : null;
+
+  // Theme is only touched when the request includes it
+  if (body.themeColors !== undefined) {
+    const theme = sanitizeStoredTheme(body.themeColors, before?.themeColors);
+    (data as any).themeColors = theme ? (theme as Prisma.InputJsonValue) : Prisma.DbNull;
+  }
 
   const saved = await prisma.$transaction(async (tx) => {
     const edition = id

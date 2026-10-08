@@ -1,6 +1,7 @@
 import { Component } from './Base';
 import { Agent } from '../utils/Agent';
 import type { AudioAnalysisData } from '../hooks/useAudioAnalyzer';
+import { hexToRgb } from '../lib/themes';
 
 /**
  * Color entry for the color lookup table
@@ -65,6 +66,10 @@ export class AgentSystem extends Component {
   private animationFrameId: number | null = null;
   private resizeHandler: (() => void) | null = null;
   private isDestroyed: boolean = false;
+
+  // Theme colours crossfade towards a target instead of snapping
+  private themeCurrent = { ink: [153, 204, 255], accent: [153, 204, 255] };
+  private themeTarget = { ink: [153, 204, 255], accent: [153, 204, 255] };
 
   // Mouse interaction: agents gather around the cursor and scale up
   private mouse = { x: 0, y: 0, active: false };
@@ -388,6 +393,36 @@ export class AgentSystem extends Component {
   }
 
   /**
+   * Set the edition theme: agents take `ink`, cursor lines take `accent`. Crossfades over ~0.7s.
+   */
+  setTheme(palette: { ink: string; accent: string }): void {
+    this.themeTarget = { ink: hexToRgb(palette.ink), accent: hexToRgb(palette.accent) };
+  }
+
+  /** Ease the current theme colours towards the target (called every frame). */
+  private stepTheme(): void {
+    let moving = false;
+    for (const key of ['ink', 'accent'] as const) {
+      const cur = this.themeCurrent[key];
+      const tgt = this.themeTarget[key];
+      for (let i = 0; i < 3; i++) {
+        const d = tgt[i] - cur[i];
+        if (Math.abs(d) > 0.5) {
+          cur[i] += d * 0.07;
+          moving = true;
+        } else {
+          cur[i] = tgt[i];
+        }
+      }
+    }
+    if (!moving && this.currentThemeColors.agent.startsWith('rgb(')) return;
+
+    const ink = `rgb(${this.themeCurrent.ink.map(Math.round).join(',')})`;
+    const accent = `rgb(${this.themeCurrent.accent.map(Math.round).join(',')})`;
+    this.currentThemeColors = { agent: ink, connection: ink, accent };
+  }
+
+  /**
    * Connect (or disconnect with null) a source of live audio analysis.
    * While audio plays, agents pulse in scale with the beat and bass.
    */
@@ -497,6 +532,7 @@ export class AgentSystem extends Component {
       return;
     }
 
+    this.stepTheme();
     this.ctx.clearRect(0, 0, this.width, this.height);
 
     // ---- Audio: smoothed pulse (fast attack, slow decay) + per-agent frequency bin ----

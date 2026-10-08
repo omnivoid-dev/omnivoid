@@ -19,6 +19,7 @@ import { TransmissionsWindow } from '@/components/edition/TransmissionsWindow';
 import { RadioWindow, type PublicRadioShow } from '@/components/edition/RadioWindow';
 import { mixcloudEmbedSrc } from '@/lib/mixcloud';
 import type { PublicEdition, PublicProfile } from '@/components/edition/types';
+import { NEUTRAL_THEME, resolveTheme } from '@/lib/themes';
 
 interface ContentItem {
   id: string;
@@ -93,6 +94,8 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState('rituals');
   const [profileFocus, setProfileFocus] = useState<string | null>(null);
   const [selectedEditionId, setSelectedEditionId] = useState<string | null>(null);
+  // The edition whose theme is applied. Null = the neutral OMNIVOID look (the default on arrival).
+  const [themeEditionId, setThemeEditionId] = useState<string | null>(null);
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
   const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
 
@@ -136,6 +139,13 @@ export default function Home() {
     // The plexus pulses with the audio player's analysis
     agentSystemRef.current?.setAudioSource(getAudioData);
   }, [isSplashComplete, getAudioData]);
+
+  // Edition theme: the agents crossfade to the edition's ink; the page background follows via CSS
+  useEffect(() => {
+    const edition = content?.editions.find((e) => e.id === themeEditionId);
+    const palette = resolveTheme(edition?.themeColors)?.palette ?? NEUTRAL_THEME;
+    agentSystemRef.current?.setTheme({ ink: palette.ink, accent: palette.accent });
+  }, [content, themeEditionId, isSplashComplete]);
 
   // Deep link: /?section=rituals opens the window on that section once the site is ready
   const initialSectionRef = useRef<string | null>(null);
@@ -206,8 +216,13 @@ export default function Home() {
     if (profile) openSection(SECTION_FOR_PROFILE_TYPE[profile.type], profile.id);
   };
 
-  const openEdition = (editionId: string) => {
+  const selectEdition = (editionId: string) => {
     setSelectedEditionId(editionId);
+    setThemeEditionId(editionId);
+  };
+
+  const openEdition = (editionId: string) => {
+    selectEdition(editionId);
     openSection('rituals');
   };
 
@@ -236,7 +251,7 @@ export default function Home() {
           <RitualsWindow
             editions={content.editions}
             selectedEditionId={selectedEditionId}
-            onSelectEdition={setSelectedEditionId}
+            onSelectEdition={selectEdition}
             onPlayVideo={play}
             profiles={profiles}
             onOpenProfile={openProfile}
@@ -287,8 +302,15 @@ export default function Home() {
 
   const selectedEditionName = content?.editions.find(e => e.id === selectedEditionId)?.name;
 
+  const themeEdition = content?.editions.find((e) => e.id === themeEditionId);
+  const activeTheme = resolveTheme(themeEdition?.themeColors);
+  const palette = activeTheme?.palette ?? NEUTRAL_THEME;
+
   return (
-    <main className="fixed inset-0 bg-[#050505] overflow-hidden flex flex-col">
+    <main
+      className="fixed inset-0 overflow-hidden flex flex-col"
+      style={{ backgroundColor: palette.bg, transition: 'background-color 800ms ease' }}
+    >
       {/* 3D WebGL Canvas Background */}
       {showStarfield && <ThreeCanvas />}
 
@@ -376,6 +398,16 @@ export default function Home() {
           >
             <span>✦</span> STARFIELD {showStarfield ? 'ON' : 'OFF'}
           </button>
+          {themeEdition && activeTheme && (
+            <button
+              onClick={() => setThemeEditionId(null)}
+              title="Return to the neutral OMNIVOID look"
+              className="flex items-center gap-2 text-[10px] font-mono tracking-widest px-3 py-1 rounded border border-white/10 bg-white/5 text-white/70 hover:text-white hover:border-[#99ccff]/40 transition-all"
+            >
+              <span className="w-2.5 h-2.5 rounded-full border border-white/30" style={{ background: palette.ink }} />
+              THEME: {themeEdition.name.toUpperCase()} ✕
+            </button>
+          )}
           <div className="h-4 w-[1px] bg-white/10" />
           <div className="text-[10px] text-white/30 font-mono tracking-widest uppercase">
             {selectedEditionName || 'INITIALIZING...'}

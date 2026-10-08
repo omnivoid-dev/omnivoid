@@ -15,6 +15,11 @@
 
 ## 🎯 Next Order of Business
 
+### 0. 🎨 Edition Themes + GLSL Effects — COLOURS DONE, SHADERS NEXT
+* **Done:** each edition has a theme (preset + palette) edited in the Theme tab of the edition editor. Selecting an edition applies it: the agents crossfade to the edition's ink and the page background follows. Windows stay constant. The site opens on the neutral look; a footer chip returns to it. Presets live in `src/lib/themes.ts` (Edition 008 and 010 palettes are placeholders).
+* **Next:** a WebGL post-effect layer for the agents and background, one effect per edition: dither (001, 007), riso halftone (002), ASCII cell mosaic (003), vanity glow and grain (special), oscilloscope phosphor trails (004), liquid metallic goo (005), glitch / block displacement (008, also as short bursts), cyanotype (009), Mandelbrot (010). Start with dither, riso and glitch. Needs a playground page to tune each effect, a footer toggle, lower resolution on phones, and a static fallback for reduced motion or no WebGL.
+* **Data still to confirm:** the performer lineups (stage B of `scripts/populate-editions.ts`, review first) and the dates for Editions 008 and 009.
+
 ### 1. 🤖 Agent System Improvement — FIRST PASS DONE
 * **Done:** agents gather around and scale up near the cursor (with lines from the cursor), and drawing pauses when the tab is hidden.
 * **Remaining:** define further behaviour, edition-themed colours, mobile density and a spatial grid for the connection checks.

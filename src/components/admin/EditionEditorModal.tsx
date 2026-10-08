@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import ImageUploadField from './ImageUploadField';
+import { NEUTRAL_THEME, THEME_PRESETS, isHex, presetById, resolveTheme, type ThemePalette } from '@/lib/themes';
 
 interface PerformerEntry {
   key: string; // existing id or temp key; transmissions reference performers by this
@@ -25,12 +26,13 @@ interface EditionEditorModalProps {
   onSuccess: () => void;
 }
 
-type TabId = 'details' | 'ritual' | 'workshop' | 'performers' | 'transmissions';
+type TabId = 'details' | 'ritual' | 'workshop' | 'theme' | 'performers' | 'transmissions';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'details', label: 'DETAILS' },
   { id: 'ritual', label: 'RITUAL' },
   { id: 'workshop', label: 'WORKSHOP' },
+  { id: 'theme', label: 'THEME' },
   { id: 'performers', label: 'PERFORMERS' },
   { id: 'transmissions', label: 'TRANSMISSIONS' },
 ];
@@ -69,6 +71,18 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
   const [workshopDateTime, setWorkshopDateTime] = useState(toDateTimeInput(initialData?.workshopDateTime));
   const [workshopPosterUrl, setWorkshopPosterUrl] = useState(initialData?.workshopPosterUrl || '');
   const [workshopTicketUrl, setWorkshopTicketUrl] = useState(initialData?.workshopTicketUrl || '');
+
+  // Theme: preset plus an editable palette (only agents and background take it)
+  const initialTheme = resolveTheme(initialData?.themeColors);
+  const [themePreset, setThemePreset] = useState<string>(initialData?.themeColors?.preset || '');
+  const [palette, setPalette] = useState<ThemePalette>(initialTheme?.palette || NEUTRAL_THEME);
+
+  const choosePreset = (id: string) => {
+    setThemePreset(id);
+    const preset = presetById(id);
+    if (preset) setPalette(preset.palette);
+    else setPalette(NEUTRAL_THEME);
+  };
 
   // Performers
   const [performers, setPerformers] = useState<PerformerEntry[]>(
@@ -148,6 +162,9 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
           workshopDateTime: workshopDateTime ? new Date(workshopDateTime).toISOString() : null,
           workshopPosterUrl,
           workshopTicketUrl,
+          themeColors: themePreset || palette.bg !== NEUTRAL_THEME.bg || palette.ink !== NEUTRAL_THEME.ink || palette.accent !== NEUTRAL_THEME.accent
+            ? { preset: themePreset || undefined, palette }
+            : null,
           performers,
           transmissions: transmissions.map((t) => ({ ...t, performerKey: t.performerKey || null })),
         }),
@@ -323,6 +340,92 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
                 </>
               )}
             </>
+          )}
+
+          {/* ---------------- THEME ---------------- */}
+          {tab === 'theme' && (
+            <div className="space-y-5">
+              <p className="text-[10px] text-white/40">
+                Applied when a visitor selects this edition. Only the background and the agents take the colours; windows stay constant. The effect (dither, riso, glitch...) comes with the shader step.
+              </p>
+
+              <div>
+                <label className={labelCls}>Preset</label>
+                <select value={themePreset} onChange={(e) => choosePreset(e.target.value)} className={inputCls}>
+                  <option value="">— None (neutral OMNIVOID look) —</option>
+                  {THEME_PRESETS.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                      {p.provisional ? ' (placeholder colours)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                {(
+                  [
+                    ['bg', 'Background'],
+                    ['ink', 'Agents'],
+                    ['accent', 'Accent'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <div key={key}>
+                    <label className={labelCls}>{label}</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={isHex(palette[key]) && palette[key].length === 7 ? palette[key] : '#000000'}
+                        onChange={(e) => setPalette({ ...palette, [key]: e.target.value })}
+                        className="w-9 h-9 bg-transparent border-0 cursor-pointer shrink-0"
+                      />
+                      <input
+                        value={palette[key]}
+                        onChange={(e) => setPalette({ ...palette, [key]: e.target.value })}
+                        className={inputCls}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => choosePreset(themePreset)}
+                  className="text-[10px] font-bold px-3 py-1.5 rounded border border-white/15 text-white/60 hover:text-white"
+                >
+                  RESET TO PRESET
+                </button>
+              </div>
+
+              {/* Live preview */}
+              <div className="rounded-lg border border-white/10 overflow-hidden" style={{ background: palette.bg }}>
+                <svg viewBox="0 0 320 110" className="w-full h-28">
+                  {[
+                    [30, 30, 90, 70],
+                    [90, 70, 150, 25],
+                    [150, 25, 215, 80],
+                    [215, 80, 285, 35],
+                    [90, 70, 215, 80],
+                  ].map(([x1, y1, x2, y2], i) => (
+                    <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={palette.ink} strokeOpacity={0.55} />
+                  ))}
+                  {[
+                    [30, 30, 3],
+                    [90, 70, 5],
+                    [150, 25, 4],
+                    [215, 80, 6],
+                    [285, 35, 3],
+                  ].map(([cx, cy, r], i) => (
+                    <circle key={i} cx={cx} cy={cy} r={r} fill={palette.ink} />
+                  ))}
+                  <line x1="160" y1="55" x2="150" y2="25" stroke={palette.accent} strokeOpacity={0.7} />
+                  <line x1="160" y1="55" x2="215" y2="80" stroke={palette.accent} strokeOpacity={0.7} />
+                  <circle cx="160" cy="55" r="3" fill={palette.accent} />
+                </svg>
+              </div>
+            </div>
           )}
 
           {/* ---------------- PERFORMERS ---------------- */}
