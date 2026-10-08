@@ -4,7 +4,7 @@
  * the first parameter of every effect is `cell`, the render cell size in CSS pixels.
  */
 
-export type FxEffect = 'dither' | 'riso' | 'glitch';
+export type FxEffect = 'dither' | 'riso' | 'glitch' | 'ascii' | 'oscilloscope' | 'marquee';
 
 export interface ParamSpec {
   key: string;
@@ -43,6 +43,39 @@ export const FX_SPECS: Record<FxEffect, EffectSpec> = {
       { key: 'pulseGain', label: 'beat', min: 0, max: 2, step: 0.05, default: 1 },
     ],
   },
+  marquee: {
+    label: 'Marquee',
+    params: [
+      { key: 'cell', label: 'cell px', min: 1, max: 3, step: 1, default: 1 },
+      { key: 'size', label: 'bulb pitch px', min: 24, max: 90, step: 2, default: 46 },
+      { key: 'glow', label: 'glow', min: 0, max: 2, step: 0.05, default: 1 },
+      { key: 'speed', label: 'speed', min: 0.2, max: 3, step: 0.1, default: 1 },
+      { key: 'pulseGain', label: 'beat flash', min: 0, max: 2, step: 0.05, default: 1 },
+    ],
+  },
+  oscilloscope: {
+    label: 'Oscilloscope',
+    params: [
+      { key: 'cell', label: 'cell px', min: 1, max: 4, step: 1, default: 2 },
+      { key: 'decay', label: 'persistence', min: 0.7, max: 0.97, step: 0.01, default: 0.9 },
+      { key: 'amp', label: 'trace amp', min: 0, max: 1, step: 0.05, default: 0.35 },
+      { key: 'thick', label: 'trace px', min: 1, max: 6, step: 0.5, default: 2 },
+      { key: 'glow', label: 'glow', min: 0, max: 2, step: 0.05, default: 1 },
+      { key: 'curve', label: 'crt curve', min: 0, max: 1, step: 0.05, default: 0.5 },
+      { key: 'pulseGain', label: 'beat', min: 0, max: 2, step: 0.05, default: 1 },
+    ],
+  },
+  ascii: {
+    label: 'ASCII',
+    params: [
+      { key: 'cell', label: 'cell px', min: 1, max: 3, step: 1, default: 1 },
+      { key: 'size', label: 'glyph size', min: 6, max: 20, step: 1, default: 9 },
+      { key: 'contrast', label: 'contrast', min: 0.5, max: 3, step: 0.05, default: 1.3 },
+      { key: 'field', label: 'field', min: 0, max: 1.5, step: 0.05, default: 0.8 },
+      { key: 'flicker', label: 'flicker', min: 0, max: 3, step: 0.1, default: 1 },
+      { key: 'pulseGain', label: 'beat', min: 0, max: 2, step: 0.05, default: 1 },
+    ],
+  },
   glitch: {
     label: 'Glitch',
     params: [
@@ -72,6 +105,9 @@ const FX_BY_PRESET: Record<string, FxEffect> = {
   'dither-yellow': 'dither',
   'dither-purple-green': 'dither',
   'riso-blue': 'riso',
+  'ascii-green': 'ascii',
+  'oscilloscope-red': 'oscilloscope',
+  vanity: 'marquee',
   'glitch-print': 'glitch',
 };
 

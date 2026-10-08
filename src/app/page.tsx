@@ -332,6 +332,7 @@ export default function Home() {
         effect={fxEffect}
         palette={{ bg: palette.bg, ink: palette.ink, accent: palette.accent }}
         getPulse={() => agentSystemRef.current?.getPulse() ?? 0}
+        getWave={() => (isPlayingAudio ? getAudioData().timeDomainData : null)}
         onActiveChange={setFxActive}
       />
       

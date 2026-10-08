@@ -33,7 +33,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   { id: 'dither-yellow', label: 'Dither: yellow & black', palette: { bg: '#000000', ink: '#FFC400', accent: '#FFFFFF' } },
   { id: 'riso-blue', label: 'Riso: blue', palette: { bg: '#241A7A', ink: '#2F7FC1', accent: '#C0278E' } },
   { id: 'ascii-green', label: 'ASCII: green', palette: { bg: '#121212', ink: '#00FF30', accent: '#BBBBBB' } },
-  { id: 'vanity', label: 'Vanity (La Nuit Blanche)', palette: { bg: '#000000', ink: '#D90000', accent: '#E0B13A' } },
+  { id: 'vanity', label: 'Vanity (La Nuit Blanche)', palette: { bg: '#8A0F26', ink: '#FFE6A0', accent: '#FFB347' } },
   { id: 'oscilloscope-red', label: 'Oscilloscope: red & black', palette: { bg: '#050505', ink: '#FF1A1A', accent: '#FFB3B3' } },
   { id: 'ai-goo-red-metallic', label: 'AI goo: red metallic', palette: { bg: '#05060A', ink: '#F23B0E', accent: '#C9D3DC' } },
   { id: 'dither-purple-green', label: 'Dither: purple & toxic green', palette: { bg: '#A924C6', ink: '#7DC15E', accent: '#FFFFFF' } },

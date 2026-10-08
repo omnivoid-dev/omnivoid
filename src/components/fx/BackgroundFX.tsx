@@ -4,11 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import { FRAGMENT_SHADERS, VERTEX_SHADER } from '@/lib/fx/shaders';
 import { FX_SPECS, defaultsFor, packParams, type FxEffect, type FxParams } from '@/lib/fx/presets';
 import { hexToRgb } from '@/lib/themes';
+import { GLYPH_ASPECT, buildAsciiAtlas } from '@/lib/fx/atlas';
 
 interface BackgroundFXProps {
   effect: FxEffect | null;
   palette: { bg: string; ink: string; accent: string };
   getPulse: () => number;
+  /** Audio time-domain samples (0..255, 128 = silence) for the scope trace; null when there is none. */
+  getWave?: () => Uint8Array | null;
   /** Reports whether the effect is actually drawing (false when WebGL is unavailable). */
   onActiveChange: (active: boolean) => void;
 }
@@ -18,13 +21,24 @@ interface Program {
   loc: Record<string, WebGLUniformLocation | null>;
 }
 
+type ProgramKey = keyof typeof FRAGMENT_SHADERS;
+
 interface GLState {
   gl: WebGLRenderingContext;
   texture: WebGLTexture;
-  programs: Partial<Record<FxEffect, Program>>;
+  programs: Partial<Record<ProgramKey, Program>>;
+  /** ASCII only: glyph atlas and the small per-cell brightness target of pass 1 */
+  atlas?: WebGLTexture;
+  luma?: { fbo: WebGLFramebuffer; tex: WebGLTexture; w: number; h: number };
+  /** Oscilloscope only: ping-pong phosphor trail targets and the waveform texture */
+  trail?: { fbos: WebGLFramebuffer[]; texs: WebGLTexture[]; w: number; h: number; idx: number };
+  wave?: WebGLTexture;
 }
 
-const UNIFORMS = ['uTex', 'uRes', 'uTime', 'uPulse', 'uMouse', 'uMouseActive', 'uKick', 'uBg', 'uInk', 'uAccent', 'uP0', 'uP1'];
+const UNIFORMS = [
+  'uTex', 'uRes', 'uTime', 'uPulse', 'uMouse', 'uMouseActive', 'uKick', 'uBg', 'uInk', 'uAccent', 'uP0', 'uP1',
+  'uScale', 'uAtlas', 'uLuma', 'uGrid', 'uPrev', 'uWave', 'uDecay',
+];
 const FADE_MS = 800;
 
 const rgb = (hex: string) => hexToRgb(hex).map((c) => c / 255);
@@ -63,7 +77,7 @@ function createContext(canvas: HTMLCanvasElement): GLState {
 }
 
 /** Compile an effect's program the first time it is needed. */
-function programFor(state: GLState, effect: FxEffect): Program {
+function programFor(state: GLState, effect: ProgramKey): Program {
   const cached = state.programs[effect];
   if (cached) return cached;
 
@@ -82,11 +96,107 @@ function programFor(state: GLState, effect: FxEffect): Program {
   return made;
 }
 
+function ensureAtlas(state: GLState): WebGLTexture {
+  if (state.atlas) return state.atlas;
+  const { gl } = state;
+  const tex = gl.createTexture()!;
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, buildAsciiAtlas());
+  gl.activeTexture(gl.TEXTURE0);
+  state.atlas = tex;
+  return tex;
+}
+
+/** (Re)allocate the one-pixel-per-character render target when the grid size changes. */
+function ensureLuma(state: GLState, w: number, h: number) {
+  const { gl } = state;
+  let target = state.luma;
+  if (!target) {
+    const tex = gl.createTexture()!;
+    const fbo = gl.createFramebuffer()!;
+    target = { fbo, tex, w: 0, h: 0 };
+    state.luma = target;
+  }
+  if (target.w === w && target.h === h) return target;
+
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, target.tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.tex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.activeTexture(gl.TEXTURE0);
+  target.w = w;
+  target.h = h;
+  return target;
+}
+
+/** Ping-pong render targets for the phosphor trail; reallocated (and cleared) on resize. */
+function ensureTrail(state: GLState, w: number, h: number) {
+  const { gl } = state;
+  let trail = state.trail;
+  if (!trail) {
+    trail = { fbos: [gl.createFramebuffer()!, gl.createFramebuffer()!], texs: [gl.createTexture()!, gl.createTexture()!], w: 0, h: 0, idx: 0 };
+    state.trail = trail;
+  }
+  if (trail.w === w && trail.h === h) return trail;
+
+  gl.activeTexture(gl.TEXTURE3);
+  for (let i = 0; i < 2; i++) {
+    gl.bindTexture(gl.TEXTURE_2D, trail.texs[i]);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, trail.fbos[i]);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, trail.texs[i], 0);
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.activeTexture(gl.TEXTURE0);
+  trail.w = w;
+  trail.h = h;
+  trail.idx = 0;
+  return trail;
+}
+
+function ensureWave(state: GLState): WebGLTexture {
+  if (state.wave) return state.wave;
+  const { gl } = state;
+  const tex = gl.createTexture()!;
+  gl.activeTexture(gl.TEXTURE4);
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.activeTexture(gl.TEXTURE0);
+  state.wave = tex;
+  return tex;
+}
+
+/** A quiet scope trace for when no audio is playing: a slow wobble plus a little noise. */
+function idleWave(t: number, out: Uint8Array) {
+  for (let i = 0; i < out.length; i++) {
+    const x = i / out.length;
+    out[i] = 128 + 7 * Math.sin(x * Math.PI * 6 + t * 1.7) + 4 * Math.sin(x * Math.PI * 17 - t * 2.9) + (Math.random() - 0.5) * 3;
+  }
+}
+
 /**
  * Takes the plexus canvas (#agents) as a texture and draws it through the edition's post effect.
  * Sits above the starfield and below every window. The raw plexus keeps drawing underneath, hidden.
  */
-export function BackgroundFX({ effect, palette, getPulse, onActiveChange }: BackgroundFXProps) {
+export function BackgroundFX({ effect, palette, getPulse, getWave, onActiveChange }: BackgroundFXProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<GLState | null>(null);
   const rafRef = useRef(0);
@@ -104,6 +214,9 @@ export function BackgroundFX({ effect, palette, getPulse, onActiveChange }: Back
     effect: null as FxEffect | null,
     params: defaultsFor('dither') as FxParams,
     getPulse,
+    getWave,
+    idle: new Uint8Array(512),
+    lastFrame: 0,
     bg: rgb(palette.bg),
     ink: rgb(palette.ink),
     accent: rgb(palette.accent),
@@ -118,6 +231,7 @@ export function BackgroundFX({ effect, palette, getPulse, onActiveChange }: Back
 
   live.current.params = params;
   live.current.getPulse = getPulse;
+  live.current.getWave = getWave;
   live.current.targetBg = rgb(palette.bg);
   live.current.targetInk = rgb(palette.ink);
   live.current.targetAccent = rgb(palette.accent);
@@ -180,6 +294,15 @@ export function BackgroundFX({ effect, palette, getPulse, onActiveChange }: Back
     try {
       if (!glRef.current) glRef.current = createContext(canvas);
       programFor(glRef.current, effect!);
+      if (effect === 'ascii') {
+        programFor(glRef.current, 'ascii-luma');
+        ensureAtlas(glRef.current);
+      }
+      if (effect === 'marquee') programFor(glRef.current, 'marquee-luma');
+      if (effect === 'oscilloscope') {
+        programFor(glRef.current, 'oscilloscope-trail');
+        ensureWave(glRef.current);
+      }
     } catch (e) {
       console.warn('Background FX disabled:', e);
       failedRef.current = true;
@@ -211,8 +334,6 @@ export function BackgroundFX({ effect, palette, getPulse, onActiveChange }: Back
       if (!active) return;
 
       const { gl, texture } = state;
-      const prog = programFor(state, active);
-      gl.useProgram(prog.program);
       resize();
 
       // Ease the palette towards its target (matches the agents' crossfade)
@@ -223,7 +344,10 @@ export function BackgroundFX({ effect, palette, getPulse, onActiveChange }: Back
       ease(l.ink, l.targetInk);
       ease(l.accent, l.targetAccent);
       l.kick *= 0.94;
+      const dt = l.lastFrame ? Math.min(0.1, (now - l.lastFrame) / 1000) : 1 / 60;
+      l.lastFrame = now;
 
+      // The plexus canvas becomes texture unit 0
       const source = document.getElementById('agents') as HTMLCanvasElement | null;
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -232,20 +356,112 @@ export function BackgroundFX({ effect, palette, getPulse, onActiveChange }: Back
       }
 
       const [p0, p1] = packParams(active, l.params);
-      const { loc } = prog;
-      gl.uniform1i(loc.uTex, 0);
-      gl.uniform2f(loc.uRes, canvas.width, canvas.height);
-      gl.uniform1f(loc.uTime, (now - l.start) / 1000);
-      gl.uniform1f(loc.uPulse, l.getPulse());
-      gl.uniform2f(loc.uMouse, l.mouse[0], l.mouse[1]);
-      gl.uniform1f(loc.uMouseActive, l.mouseActive ? 1 : 0);
-      gl.uniform1f(loc.uKick, l.kick);
-      gl.uniform3f(loc.uBg, l.bg[0], l.bg[1], l.bg[2]);
-      gl.uniform3f(loc.uInk, l.ink[0], l.ink[1], l.ink[2]);
-      gl.uniform3f(loc.uAccent, l.accent[0], l.accent[1], l.accent[2]);
-      gl.uniform4f(loc.uP0, p0[0], p0[1], p0[2], p0[3]);
-      gl.uniform4f(loc.uP1, p1[0], p1[1], p1[2], p1[3]);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      const scale = window.innerWidth / canvas.width; // CSS px per render px
+      const setUniforms = (loc: Program['loc'], res: [number, number]) => {
+        gl.uniform1i(loc.uTex, 0);
+        gl.uniform2f(loc.uRes, res[0], res[1]);
+        gl.uniform1f(loc.uTime, (now - l.start) / 1000);
+        gl.uniform1f(loc.uPulse, l.getPulse());
+        gl.uniform2f(loc.uMouse, l.mouse[0], l.mouse[1]);
+        gl.uniform1f(loc.uMouseActive, l.mouseActive ? 1 : 0);
+        gl.uniform1f(loc.uKick, l.kick);
+        gl.uniform3f(loc.uBg, l.bg[0], l.bg[1], l.bg[2]);
+        gl.uniform3f(loc.uInk, l.ink[0], l.ink[1], l.ink[2]);
+        gl.uniform3f(loc.uAccent, l.accent[0], l.accent[1], l.accent[2]);
+        gl.uniform4f(loc.uP0, p0[0], p0[1], p0[2], p0[3]);
+        gl.uniform4f(loc.uP1, p1[0], p1[1], p1[2], p1[3]);
+        gl.uniform1f(loc.uScale, scale);
+      };
+
+      if (active === 'ascii' || active === 'marquee') {
+        // Pass 1: one pixel per cell (character or bulb; cheap, many taps), into a small target
+        const glyphW = (p0[1] || 9) / scale;
+        const glyphH = glyphW * (active === 'ascii' ? GLYPH_ASPECT : 1);
+        const gw = Math.max(1, Math.ceil(canvas.width / glyphW));
+        const gh = Math.max(1, Math.ceil(canvas.height / glyphH));
+        const target = ensureLuma(state, gw, gh);
+        const lumaProg = programFor(state, active === 'ascii' ? 'ascii-luma' : 'marquee-luma');
+
+        gl.useProgram(lumaProg.program);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
+        gl.viewport(0, 0, gw, gh);
+        setUniforms(lumaProg.loc, [canvas.width, canvas.height]);
+        gl.uniform2f(lumaProg.loc.uGrid, gw, gh);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+        // Pass 2: full resolution, glyphs from the atlas
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        const glyphProg = programFor(state, active);
+        gl.useProgram(glyphProg.program);
+        setUniforms(glyphProg.loc, [canvas.width, canvas.height]);
+        gl.uniform2f(glyphProg.loc.uGrid, gw, gh);
+        if (active === 'ascii') {
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, state.atlas!);
+          gl.uniform1i(glyphProg.loc.uAtlas, 1);
+        }
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, target.tex);
+        gl.uniform1i(glyphProg.loc.uLuma, 2);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      } else if (active === 'oscilloscope') {
+        const trail = ensureTrail(state, canvas.width, canvas.height);
+        const trailProg = programFor(state, 'oscilloscope-trail');
+
+        // Scope trace samples: real audio when playing, a quiet idle wave otherwise
+        let wave = l.getWave?.() ?? null;
+        if (wave) {
+          let lo = 255;
+          let hi = 0;
+          for (let i = 0; i < wave.length; i += 8) {
+            lo = Math.min(lo, wave[i]);
+            hi = Math.max(hi, wave[i]);
+          }
+          if (hi - lo < 4) wave = null;
+        }
+        if (!wave) {
+          idleWave(now / 1000, l.idle);
+          wave = l.idle;
+        }
+        gl.activeTexture(gl.TEXTURE4);
+        gl.bindTexture(gl.TEXTURE_2D, state.wave!);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, wave.length, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, wave);
+
+        // Pass 1: previous trail (+ fresh beams) -> the other target
+        const read = trail.texs[trail.idx];
+        const write = trail.fbos[1 - trail.idx];
+        gl.useProgram(trailProg.program);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, write);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        setUniforms(trailProg.loc, [canvas.width, canvas.height]);
+        gl.activeTexture(gl.TEXTURE3);
+        gl.bindTexture(gl.TEXTURE_2D, read);
+        gl.uniform1i(trailProg.loc.uPrev, 3);
+        gl.uniform1i(trailProg.loc.uWave, 4);
+        gl.uniform1f(trailProg.loc.uDecay, Math.pow((l.params.decay as number) || 0.9, dt * 60));
+        gl.activeTexture(gl.TEXTURE0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        trail.idx = 1 - trail.idx;
+
+        // Pass 2: show the trail we just wrote
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        const displayProg = programFor(state, 'oscilloscope');
+        gl.useProgram(displayProg.program);
+        setUniforms(displayProg.loc, [canvas.width, canvas.height]);
+        gl.activeTexture(gl.TEXTURE3);
+        gl.bindTexture(gl.TEXTURE_2D, trail.texs[trail.idx]);
+        gl.uniform1i(displayProg.loc.uPrev, 3);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      } else {
+        const prog = programFor(state, active);
+        gl.useProgram(prog.program);
+        setUniforms(prog.loc, [canvas.width, canvas.height]);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      }
     };
 
     cancelAnimationFrame(rafRef.current);

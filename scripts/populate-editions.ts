@@ -81,7 +81,7 @@ const EDITIONS: EditionDef[] = [
     venue: 'Alliance Francaise Madras, Espace 24', city: 'Chennai',
     description: 'OMNIVOID Specials. 5 PM to 2 AM. Entry free.',
     poster: 'Copy of Instagram post - 1.png',
-    theme: { preset: 'vanity', palette: { bg: '#000000', ink: '#D90000', accent: '#E0B13A' } },
+    theme: { preset: 'vanity', palette: { bg: '#8A0F26', ink: '#FFE6A0', accent: '#FFB347' } },
   },
   {
     slug: 'edition-003', name: 'Edition 003', sortOrder: 4, date: `2025-11-02T17:00:00${IST}`, venue: 'Aura Studios', city: 'Chennai',
