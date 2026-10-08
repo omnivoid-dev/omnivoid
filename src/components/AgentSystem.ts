@@ -133,7 +133,7 @@ export class AgentSystem extends Component {
     
     // Color lookup table for audio-reactive colors
     this.colorLUT = this.createColorLookupTable();
-    this.defaultColor = getComputedStyle(document.documentElement).getPropertyValue('--fg-color').trim();
+    this.defaultColor = getComputedStyle(document.documentElement).getPropertyValue('--fg-color').trim() || '#99ccff';
     
     // Store default colors for restoration
     this.defaultColors = {

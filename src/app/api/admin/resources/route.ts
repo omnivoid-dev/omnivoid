@@ -20,7 +20,8 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: { sortOrder: 'asc' },
       include: {
-        edition: { select: { name: true } }
+        edition: { select: { name: true } },
+        performer: { select: { name: true } }
       }
     });
 
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     if (!authResult.success) return NextResponse.json({ success: false, error: authResult.error }, { status: 401 });
 
     const body = await request.json();
-    const { editionId, type, title, description, url, filePath, thumbnailUrl, metadata, sortOrder, isFeatured, isActive } = body;
+    const { editionId, performerId, type, title, description, url, filePath, thumbnailUrl, metadata, sortOrder, isFeatured, isActive } = body;
 
     if (!editionId || !type || !title) {
       return NextResponse.json({ success: false, error: 'EditionId, Type, and Title are required' }, { status: 400 });
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
     const resource = await prisma.resource.create({
       data: {
         editionId,
+        performerId: performerId || null,
         type,
         title,
         description,

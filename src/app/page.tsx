@@ -10,6 +10,11 @@ import { ThreeCanvas } from '@/components/ThreeCanvas';
 import { useAudioAnalyzer } from '@/hooks/useAudioAnalyzer';
 import { AudioPlayerWindow, AudioTrack } from '@/components/AudioPlayerWindow';
 import { AgentOverlay } from '@/components/AgentOverlay';
+import { TintedImage } from '@/components/TintedImage';
+import { DEFAULT_LOGO_URL, LOGO_ASPECT, MENU_ICON_SLOTS, iconUrlFor, resolveBranding, type SiteBranding } from '@/lib/branding';
+import { RitualsWindow } from '@/components/edition/RitualsWindow';
+import { TransmissionsWindow } from '@/components/edition/TransmissionsWindow';
+import type { PublicEdition } from '@/components/edition/types';
 
 interface ContentItem {
   id: string;
@@ -30,22 +35,10 @@ interface ContentStructure {
   links: ContentItem[];
   documents: ContentItem[];
   resources: any[];
+  branding?: SiteBranding;
   conundrumText?: string;
   contactInfo?: { contactEmail: string; submissionsEmail: string };
-  editions: {
-    id: string;
-    name: string;
-    slug: string;
-    description?: string;
-    posterUrl?: string;
-    workshopPosterUrl?: string;
-    eventDate?: string;
-    artists?: any;
-    youtubeLinks?: any;
-    isLatestRitual?: boolean;
-    isActive: boolean;
-    sortOrder: number;
-  }[];
+  editions: PublicEdition[];
   currentEdition: any | null;
 }
 
@@ -99,6 +92,8 @@ export default function Home() {
   const [isAudioPlayerOpen, setIsAudioPlayerOpen] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<AudioTrack | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
+  const [showStarfield, setShowStarfield] = useState(false);
 
   const { connectAudioElement, getAudioData } = useAudioAnalyzer();
 
@@ -164,7 +159,10 @@ export default function Home() {
     .map(r => ({
       id: r.id,
       title: r.title,
-      artist: r.metadata?.artist || 'OMNIVOID AUDIO LABS',
+      artist:
+        content?.editions.flatMap(e => e.performers).find(p => p.id === r.performerId)?.name ||
+        r.metadata?.artist ||
+        'OMNIVOID AUDIO LABS',
       url: r.url || r.filePath || '',
       duration: r.metadata?.duration,
       editionName: content?.editions.find(e => e.id === r.editionId)?.name,
@@ -290,135 +288,30 @@ export default function Home() {
         `;
         return { content: html, tabs: [] };
 
-      case 'gigs': {
-        const currentEditionObj = (content.editions || []).find((e: any) => e.id === selectedEditionId) || (content.editions || [])[0];
-        
-        let artistList: any[] = [];
-        if (currentEditionObj?.artists) {
-          try {
-            artistList = typeof currentEditionObj.artists === 'string' ? JSON.parse(currentEditionObj.artists) : currentEditionObj.artists;
-          } catch {
-            artistList = [];
-          }
-        }
-
-        let youtubeList: any[] = [];
-        if (currentEditionObj?.youtubeLinks) {
-          try {
-            youtubeList = typeof currentEditionObj.youtubeLinks === 'string' ? JSON.parse(currentEditionObj.youtubeLinks) : currentEditionObj.youtubeLinks;
-          } catch {
-            youtubeList = [];
-          }
-        }
-
-        html = `
-          <div class="space-y-6 font-mono">
-            {/* Header Badge */}
-            <div class="p-4 bg-[#99ccff]/10 border border-[#99ccff]/30 rounded-lg flex items-center justify-between">
-              <div>
-                <span class="text-[10px] text-[#99ccff] tracking-widest uppercase font-bold">LATEST RITUAL // EDITION</span>
-                <h3 class="text-lg font-bold text-white mb-0.5">${currentEditionObj?.name || 'OMNIVOID RITUAL'}</h3>
-                <p class="text-xs text-white/50">
-                  ${currentEditionObj?.eventDate ? `EVENT DATE: ${new Date(currentEditionObj.eventDate).toLocaleDateString()}` : 'SINGLE EVENT DAY'}
-                </p>
-              </div>
-              <span class="text-xs px-3 py-1 bg-[#99ccff] text-[#050505] font-bold rounded-full">
-                ${currentEditionObj?.isLatestRitual ? '★ LATEST RITUAL' : 'ACTIVE EDITION'}
-              </span>
-            </div>
-
-            <!-- Main Posters Section -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <!-- Main Edition Poster -->
-              <div class="bg-black/40 border border-white/10 rounded-lg p-4 flex flex-col items-center justify-center text-center">
-                <div class="w-full aspect-[3/4] bg-white/5 rounded border border-white/10 flex items-center justify-center mb-3 relative overflow-hidden group">
-                  ${currentEditionObj?.posterUrl ? `
-                    <img src="${currentEditionObj.posterUrl}" alt="Main Poster" class="w-full h-full object-cover" />
-                  ` : `
-                    <div class="text-center p-6">
-                      <span class="text-4xl mb-2 block">🖼️</span>
-                      <p class="text-xs text-[#99ccff] font-bold">${currentEditionObj?.name || 'EDITION POSTER'}</p>
-                      <p class="text-[10px] text-white/40 mt-1">MAIN RITUAL ARTWORK</p>
-                    </div>
-                  `}
-                </div>
-                <span class="text-xs text-[#99ccff] font-bold uppercase tracking-wider">MAIN EVENT POSTER</span>
-              </div>
-
-              <!-- Workshop Poster & Details -->
-              <div class="bg-black/40 border border-white/10 rounded-lg p-4 flex flex-col items-center justify-center text-center">
-                <div class="w-full aspect-[3/4] bg-white/5 rounded border border-white/10 flex items-center justify-center mb-3 relative overflow-hidden group">
-                  ${currentEditionObj?.workshopPosterUrl ? `
-                    <img src="${currentEditionObj.workshopPosterUrl}" alt="Workshop Poster" class="w-full h-full object-cover" />
-                  ` : `
-                    <div class="text-center p-6">
-                      <span class="text-4xl mb-2 block">🛠️</span>
-                      <p class="text-xs text-emerald-400 font-bold">WORKSHOP POSTER</p>
-                      <p class="text-[10px] text-white/40 mt-1">AUDIO & VISUAL LAB</p>
-                    </div>
-                  `}
-                </div>
-                <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider">WORKSHOP POSTER</span>
-              </div>
-            </div>
-
-            <!-- Artists & Lineup with Handles -->
-            <div class="p-4 bg-white/5 border border-white/10 rounded-lg space-y-3">
-              <span class="text-[10px] text-[#99ccff] font-bold uppercase tracking-widest block border-b border-white/10 pb-2">
-                🎭 PERFORMERS & LINEUP HANDLES
-              </span>
-              {artistList.length === 0 ? (
-                <p className="text-xs text-white/40">No performer handles entered for this edition.</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  ${artistList.map((artist: any) => `
-                    <div class="p-3 bg-black/50 border border-white/10 rounded flex flex-col justify-between space-y-1">
-                      <span class="text-xs font-bold text-white">${artist.name}</span>
-                      <div class="flex items-center gap-3 text-[10px] pt-1">
-                        ${artist.instagram ? `
-                          <a href="https://instagram.com/${artist.instagram.replace('@', '')}" target="_blank" class="text-[#99ccff] hover:underline">
-                            📷 ${artist.instagram}
-                          </a>
-                        ` : ''}
-                        ${artist.youtube ? `
-                          <a href="${artist.youtube.startsWith('http') ? artist.youtube : `https://youtube.com/${artist.youtube}`}" target="_blank" class="text-red-400 hover:underline">
-                            📺 YouTube
-                          </a>
-                        ` : ''}
-                      </div>
-                    </div>
-                  `).join('')}
-                </div>
-              )}
-            </div>
-
-            <!-- YouTube Videos for this Edition -->
-            ${youtubeList.length > 0 ? `
-              <div class="pt-2">
-                <h4 class="text-xs font-bold text-[#99ccff] uppercase tracking-widest mb-3">📡 TRANSMISSION VIDEOS (${youtubeList.length})</h4>
-                <div class="space-y-2">
-                  ${youtubeList.map((vid: any) => `
-                    <div 
-                      onclick="window.openYouTube('${vid.url}')"
-                      class="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded hover:border-[#99ccff]/50 cursor-pointer transition-all group"
-                    >
-                      <div class="flex items-center gap-3">
-                        <span class="text-lg">📺</span>
-                        <span class="text-xs font-bold text-white group-hover:text-[#99ccff]">${vid.title || 'YouTube Transmission'}</span>
-                      </div>
-                      <span class="text-[10px] px-2 py-1 bg-[#99ccff]/10 text-[#99ccff] border border-[#99ccff]/20 rounded">WATCH ▶</span>
-                    </div>
-                  `).join('')}
-                </div>
-              </div>
-            ` : ''}
-          </div>
-        `;
-        return { content: html, tabs: [] };
-      }
-
       default:
         return { content: 'CONTENT_UNAVAILABLE', tabs: [] };
+    }
+  };
+
+  const renderLiveSection = (sectionId: string) => {
+    if (!content) return null;
+    const play = (url: string) => setActiveVideoUrl(url);
+    switch (sectionId) {
+      case 'rituals':
+        return (
+          <RitualsWindow
+            editions={content.editions}
+            selectedEditionId={selectedEditionId}
+            onSelectEdition={setSelectedEditionId}
+            onPlayVideo={play}
+          />
+        );
+      case 'transmissions':
+        return <TransmissionsWindow editions={content.editions} kinds={['SET', 'WORKSHOP', 'OTHER']} title="Transmissions" onPlayVideo={play} />;
+      case 'labs':
+        return <TransmissionsWindow editions={content.editions} kinds={['LABS']} title="Labs sessions" onPlayVideo={play} />;
+      default:
+        return null;
     }
   };
 
@@ -449,15 +342,17 @@ export default function Home() {
     return <SplashScreen onComplete={() => setIsSplashComplete(true)} />;
   }
 
+  const branding = resolveBranding(content?.branding);
+
   const selectedEditionName = content?.editions.find(e => e.id === selectedEditionId)?.name;
 
   return (
     <main className="fixed inset-0 bg-[#050505] overflow-hidden flex flex-col">
       {/* 3D WebGL Canvas Background */}
-      <ThreeCanvas getAudioData={getAudioData} isPlaying={isPlayingAudio} />
+      {showStarfield && <ThreeCanvas />}
 
-      {/* 2D Agent Canvas Overlay */}
-      <canvas id="agents" className="fixed inset-0 z-0 opacity-25 pointer-events-none" />
+      {/* 2D Agent Canvas Overlay (plexus) */}
+      <canvas id="agents" className="fixed inset-0 z-0 opacity-60 pointer-events-none" />
       
       {/* Agent Dialogue HUD Overlay */}
       <AgentOverlay
@@ -468,37 +363,20 @@ export default function Home() {
 
       {/* Main OMNIVOID Central Logo watermark */}
       <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10">
-        <motion.img 
+        <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 0.12, scale: 1 }}
           transition={{ duration: 2 }}
-          src="/logo.svg" 
-          alt="OMNIVOID" 
-          style={{ 
-            width: '15vw',
-            maxWidth: '250px',
-            filter: 'brightness(1.5)',
-          }}
-        />
-      </div>
-
-      {/* Edition Selectors */}
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 flex gap-8 z-[100]">
-        {content?.editions.slice(0, 3).map((edition, idx) => (
-          <motion.button
-            key={edition.id}
-            whileHover={{ scale: 1.1, boxShadow: '0 0 20px rgba(153, 204, 255, 0.4)' }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setSelectedEditionId(edition.id)}
-            className={`w-14 h-14 rounded-full border-2 flex items-center justify-center font-mono text-xl transition-all duration-500 shadow-lg backdrop-blur-md ${
-              selectedEditionId === edition.id 
-                ? 'bg-[#99ccff] text-[#050505] border-[#99ccff]' 
-                : 'bg-black/60 text-[#99ccff] border-[#99ccff]/40 hover:border-[#99ccff]'
-            }`}
-          >
-            {idx + 1}
-          </motion.button>
-        ))}
+          style={{ width: '15vw', maxWidth: '250px', filter: 'brightness(1.5)' }}
+        >
+          <TintedImage
+            src={branding.logo.url || DEFAULT_LOGO_URL}
+            tint={branding.logo.tint}
+            aspect={LOGO_ASPECT}
+            alt="OMNIVOID"
+            style={{ width: '100%' }}
+          />
+        </motion.div>
       </div>
 
       {/* Retro Windows */}
@@ -513,7 +391,9 @@ export default function Home() {
             onClose={() => setOpenWindows(prev => ({ ...prev, [section.id]: false }))}
             position={section.windowPosition}
             tabs={windowTabs[section.id] || []}
-          />
+          >
+            {renderLiveSection(section.id)}
+          </RetroWindow>
         ))}
       </div>
 
@@ -547,6 +427,16 @@ export default function Home() {
             }`}
           >
             <span>🎵</span> AUDIO PLAYER {isPlayingAudio && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />}
+          </button>
+          <button
+            onClick={() => setShowStarfield(v => !v)}
+            className={`flex items-center gap-2 text-[10px] font-mono tracking-widest px-3 py-1 rounded transition-all border ${
+              showStarfield
+                ? 'bg-[#99ccff]/20 text-[#99ccff] border-[#99ccff]/40'
+                : 'bg-white/5 text-white/60 border-white/10 hover:border-[#99ccff]/30 hover:text-white'
+            }`}
+          >
+            <span>✦</span> STARFIELD {showStarfield ? 'ON' : 'OFF'}
           </button>
           <div className="h-4 w-[1px] bg-white/10" />
           <div className="text-[10px] text-white/30 font-mono tracking-widest uppercase">
@@ -590,7 +480,14 @@ export default function Home() {
                   onClick={() => openWindow(item)}
                   className="w-full flex items-center gap-3 px-3 py-2 text-white/60 hover:text-[#99ccff] hover:bg-white/5 rounded transition-all text-xs font-mono text-left"
                 >
-                  <span className="text-lg">{item.icon}</span>
+                  {(() => {
+                    const url = iconUrlFor(branding, item.id);
+                    return url ? (
+                      <TintedImage src={url} tint={branding.iconTint} alt="" style={{ width: 22, height: 22 }} />
+                    ) : (
+                      <span className="text-lg w-[22px] text-center">{MENU_ICON_SLOTS.find(sl => sl.id === item.id)?.fallback ?? item.icon}</span>
+                    );
+                  })()}
                   {item.label}
                 </button>
               ))}

@@ -1,5 +1,6 @@
 'use client';
 
+import BrandingManager from '@/components/admin/BrandingManager';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -144,10 +145,16 @@ export default function DashboardPage() {
               🏛️ MANAGE EDITIONS
             </Link>
             <Link
-              href="/admin/resources"
+              href="/admin/research"
               className="bg-white/5 text-white/80 border border-white/10 px-5 py-2 rounded-lg font-bold text-xs hover:bg-white/10 transition-all"
             >
-              📚 RESEARCH & AUDIO
+              📚 RESEARCH
+            </Link>
+            <Link
+              href="/admin/audio"
+              className="bg-white/5 text-white/80 border border-white/10 px-5 py-2 rounded-lg font-bold text-xs hover:bg-white/10 transition-all"
+            >
+              🎧 AUDIO
             </Link>
           </div>
         </section>
@@ -276,6 +283,8 @@ export default function DashboardPage() {
             </form>
           </motion.div>
         </div>
+
+        <BrandingManager />
       </div>
     </AdminLayout>
   );

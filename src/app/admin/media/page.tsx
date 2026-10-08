@@ -5,22 +5,20 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
 import EntityForm, { FieldDefinition } from '@/components/admin/EntityForm';
 
-interface Gig {
+interface Resource {
   id: string;
   title: string;
-  date: string;
-  venue?: string;
-  location?: string;
+  type: string;
   isActive: boolean;
-  editionId?: string;
-  edition?: { name: string };
+  editionId: string;
+  sortOrder?: number;
 }
 
-export default function GigsPage() {
-  const [gigs, setGigs] = useState<Gig[]>([]);
+export default function ResourcesPage() {
+  const [resources, setResources] = useState<Resource[]>([]);
   const [editions, setEditions] = useState<{label: string, value: string}[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [editingItem, setEditingItem] = useState<Gig | null>(null);
+  const [editingItem, setEditingItem] = useState<Resource | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -31,14 +29,14 @@ export default function GigsPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [gRes, eRes] = await Promise.all([
-        fetch('/api/admin/gigs'),
+      const [rRes, eRes] = await Promise.all([
+        fetch('/api/admin/resources'),
         fetch('/api/admin/editions')
       ]);
       
-      const [gData, eData] = await Promise.all([gRes.json(), eRes.json()]);
+      const [rData, eData] = await Promise.all([rRes.json(), eRes.json()]);
       
-      if (gData.success) setGigs(gData.data);
+      if (rData.success) setResources(rData.data.filter((r: Resource) => r.type !== 'AUDIO'));
       if (eData.success) {
         setEditions(eData.data.map((e: any) => ({ label: e.name, value: e.id })));
       }
@@ -52,7 +50,7 @@ export default function GigsPage() {
   const handleSubmit = async (formData: any) => {
     setIsSaving(true);
     const method = editingItem ? 'PUT' : 'POST';
-    const url = editingItem ? `/api/admin/gigs/${editingItem.id}` : '/api/admin/gigs';
+    const url = editingItem ? `/api/admin/resources/${editingItem.id}` : '/api/admin/resources';
 
     try {
       const res = await fetch(url, {
@@ -75,59 +73,71 @@ export default function GigsPage() {
     }
   };
 
-  const handleDelete = async (item: Gig) => {
+  const handleDelete = async (item: Resource) => {
     if (!confirm(`Are you sure you want to delete "${item.title}"?`)) return;
 
     try {
-      const res = await fetch(`/api/admin/gigs/${item.id}`, {
+      const res = await fetch(`/api/admin/resources/${item.id}`, {
         method: 'DELETE',
       });
       const data = await res.json();
       if (data.success) fetchData();
     } catch (err) {
-      console.error('Failed to delete gig:', err);
+      console.error('Failed to delete resource:', err);
     }
   };
 
   const fields: FieldDefinition[] = [
-    { name: 'title', label: 'Gig Title', type: 'text', required: true, gridCols: 1 },
-    { name: 'editionId', label: 'Edition', type: 'select', options: editions, gridCols: 1 },
-    { name: 'subtitle', label: 'Subtitle', type: 'text', gridCols: 2 },
+    { name: 'title', label: 'Resource Title', type: 'text', required: true, gridCols: 1 },
+    { 
+      name: 'type', 
+      label: 'Resource Type', 
+      type: 'select', 
+      required: true,
+      options: [
+        { label: 'Video', value: 'VIDEO' },
+        { label: 'Poster', value: 'POSTER' },
+        { label: 'Document', value: 'DOCUMENT' },
+        { label: 'Link', value: 'LINK' },
+        { label: 'Gallery Image', value: 'GALLERY' },
+        { label: 'Edition Logo', value: 'LOGO' },
+      ],
+      gridCols: 1 
+    },
+    { name: 'editionId', label: 'Associated Edition', type: 'select', required: true, options: editions, gridCols: 1 },
+    { name: 'url', label: 'External URL (YouTube/Drive)', type: 'text', gridCols: 1 },
+    { name: 'filePath', label: 'Local File Path', type: 'text', gridCols: 1 },
+    { name: 'thumbnailUrl', label: 'Thumbnail URL', type: 'text', gridCols: 1 },
     { name: 'description', label: 'Description', type: 'textarea', gridCols: 2 },
-    { name: 'date', label: 'Date', type: 'date', required: true, gridCols: 1 },
-    { name: 'venue', label: 'Venue', type: 'text', gridCols: 1 },
-    { name: 'location', label: 'Location', type: 'text', gridCols: 1 },
-    { name: 'address', label: 'Full Address', type: 'text', gridCols: 1 },
     { name: 'isActive', label: 'Active', type: 'switch', gridCols: 1 },
     { name: 'isFeatured', label: 'Featured', type: 'switch', gridCols: 1 },
-    { name: 'hasWorkshop', label: 'Includes Workshop', type: 'switch', gridCols: 2 },
-    { name: 'workshopTitle', label: 'Workshop Title', type: 'text', gridCols: 1 },
-    { name: 'workshopDescription', label: 'Workshop Description', type: 'textarea', gridCols: 2 },
+    { name: 'sortOrder', label: 'Sort Order', type: 'number', gridCols: 1 },
   ];
 
   return (
     <AdminLayout>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">Rituals</h1>
-          <p className="text-sm text-white/40 font-mono">Manage live events and workshop content.</p>
+          <h1 className="text-2xl font-bold text-white mb-1">Media Library</h1>
+          <p className="text-sm text-white/40 font-mono">Gallery images, posters, logos and other non-audio assets. Audio lives under Audio Player; PDFs under Research Papers.</p>
         </div>
-        <button
-          onClick={() => { setEditingItem(null); setShowForm(true); }}
-          className="bg-[#99ccff] text-[#080808] px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#7ab8e6] transition-all"
-        >
-          + NEW RITUAL
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => { setEditingItem(null); setShowForm(true); }}
+            className="bg-[#99ccff] text-[#080808] px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#7ab8e6] transition-all"
+          >
+            + NEW RESOURCE
+          </button>
+        </div>
       </div>
 
       <DataTable
-        data={gigs}
+        data={resources}
         isLoading={isLoading}
         columns={[
-          { header: 'Date', accessor: (item) => new Date(item.date).toLocaleDateString() },
           { header: 'Title', accessor: 'title' },
-          { header: 'Edition', accessor: (item) => item.edition?.name || 'N/A' },
-          { header: 'Venue', accessor: (item) => item.venue || item.location || 'N/A' },
+          { header: 'Type', accessor: 'type' },
+          { header: 'Order', accessor: 'sortOrder' },
           { header: 'Status', accessor: (item) => (
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${item.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-white/40'}`}>
               {item.isActive ? 'ACTIVE' : 'INACTIVE'}
@@ -140,14 +150,15 @@ export default function GigsPage() {
 
       {showForm && (
         <EntityForm
-          title={editingItem ? 'Edit Ritual' : 'New Ritual'}
+          title={editingItem ? 'Edit Resource' : 'New Resource'}
           fields={fields}
-          initialData={editingItem || { isActive: true, isFeatured: false, hasWorkshop: false }}
+          initialData={editingItem || { isActive: true, isFeatured: false, sortOrder: 0 }}
           isLoading={isSaving}
           onCancel={() => setShowForm(false)}
           onSubmit={handleSubmit}
         />
       )}
+
     </AdminLayout>
   );
 }

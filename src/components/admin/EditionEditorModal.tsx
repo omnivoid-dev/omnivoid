@@ -2,16 +2,21 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import ImageUploadField from './ImageUploadField';
 
-interface ArtistEntry {
+interface PerformerEntry {
+  key: string; // existing id or temp key; transmissions reference performers by this
   name: string;
-  instagram?: string;
-  youtube?: string;
+  instagram: string;
+  youtube: string;
 }
 
-interface YouTubeLinkEntry {
+interface TransmissionEntry {
   title: string;
+  originalTitle: string;
   url: string;
+  kind: 'SET' | 'WORKSHOP' | 'LABS' | 'OTHER';
+  performerKey: string;
 }
 
 interface EditionEditorModalProps {
@@ -20,75 +25,102 @@ interface EditionEditorModalProps {
   onSuccess: () => void;
 }
 
+type TabId = 'details' | 'ritual' | 'workshop' | 'performers' | 'transmissions';
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'details', label: 'DETAILS' },
+  { id: 'ritual', label: 'RITUAL' },
+  { id: 'workshop', label: 'WORKSHOP' },
+  { id: 'performers', label: 'PERFORMERS' },
+  { id: 'transmissions', label: 'TRANSMISSIONS' },
+];
+
+const inputCls =
+  'w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-xs text-white outline-none focus:border-[#99ccff]';
+const labelCls = 'block text-[10px] font-bold text-white/40 uppercase mb-1';
+const tempKey = () => `new-${Math.random().toString(36).slice(2, 9)}`;
+
+const toDateInput = (v?: string | null) => (v ? new Date(v).toISOString().split('T')[0] : '');
+const toDateTimeInput = (v?: string | null) => (v ? new Date(v).toISOString().slice(0, 16) : '');
+
 export default function EditionEditorModal({ initialData, onClose, onSuccess }: EditionEditorModalProps) {
+  const [tab, setTab] = useState<TabId>('details');
+
+  // Details
   const [name, setName] = useState(initialData?.name || '');
   const [slug, setSlug] = useState(initialData?.slug || '');
   const [description, setDescription] = useState(initialData?.description || '');
-  const [eventDate, setEventDate] = useState(
-    initialData?.eventDate ? new Date(initialData.eventDate).toISOString().split('T')[0] : ''
-  );
-  const [posterUrl, setPosterUrl] = useState(initialData?.posterUrl || '');
-  const [workshopPosterUrl, setWorkshopPosterUrl] = useState(initialData?.workshopPosterUrl || '');
-  const [isLatestRitual, setIsLatestRitual] = useState(initialData?.isLatestRitual || false);
+  const [eventDate, setEventDate] = useState(toDateInput(initialData?.eventDate));
+  const [venue, setVenue] = useState(initialData?.venue || '');
+  const [city, setCity] = useState(initialData?.city || '');
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
   const [sortOrder, setSortOrder] = useState(initialData?.sortOrder || 0);
 
-  // Parse Artists JSON
-  const [artists, setArtists] = useState<ArtistEntry[]>(() => {
-    if (!initialData?.artists) return [{ name: '', instagram: '', youtube: '' }];
-    try {
-      return typeof initialData.artists === 'string'
-        ? JSON.parse(initialData.artists)
-        : initialData.artists;
-    } catch {
-      return [{ name: '', instagram: '', youtube: '' }];
-    }
-  });
+  // Ritual
+  const [isLatestRitual, setIsLatestRitual] = useState(initialData?.isLatestRitual || false);
+  const [posterUrl, setPosterUrl] = useState(initialData?.posterUrl || '');
+  const [ticketUrl, setTicketUrl] = useState(initialData?.ticketUrl || '');
+  const [ticketLabel, setTicketLabel] = useState(initialData?.ticketLabel || 'GET TICKETS');
 
-  // Parse YouTube Links JSON
-  const [youtubeLinks, setYoutubeLinks] = useState<YouTubeLinkEntry[]>(() => {
-    if (!initialData?.youtubeLinks) return [{ title: '', url: '' }];
-    try {
-      return typeof initialData.youtubeLinks === 'string'
-        ? JSON.parse(initialData.youtubeLinks)
-        : initialData.youtubeLinks;
-    } catch {
-      return [{ title: '', url: '' }];
-    }
-  });
+  // Workshop
+  const [hasWorkshop, setHasWorkshop] = useState(initialData?.hasWorkshop || false);
+  const [workshopTitle, setWorkshopTitle] = useState(initialData?.workshopTitle || '');
+  const [workshopDescription, setWorkshopDescription] = useState(initialData?.workshopDescription || '');
+  const [workshopDateTime, setWorkshopDateTime] = useState(toDateTimeInput(initialData?.workshopDateTime));
+  const [workshopPosterUrl, setWorkshopPosterUrl] = useState(initialData?.workshopPosterUrl || '');
+  const [workshopTicketUrl, setWorkshopTicketUrl] = useState(initialData?.workshopTicketUrl || '');
+
+  // Performers
+  const [performers, setPerformers] = useState<PerformerEntry[]>(
+    (initialData?.performers || []).map((p: any) => ({
+      key: p.id,
+      name: p.name,
+      instagram: p.instagram || '',
+      youtube: p.youtube || '',
+    }))
+  );
+
+  // Transmissions
+  const [transmissions, setTransmissions] = useState<TransmissionEntry[]>(
+    (initialData?.transmissions || []).map((t: any) => ({
+      title: t.title,
+      originalTitle: t.originalTitle || '',
+      url: t.url,
+      kind: t.kind || 'SET',
+      performerKey: t.performerId || '',
+    }))
+  );
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Artist list management
-  const addArtist = () => setArtists([...artists, { name: '', instagram: '', youtube: '' }]);
-  const updateArtist = (index: number, field: keyof ArtistEntry, value: string) => {
-    const updated = [...artists];
-    updated[index][field] = value;
-    setArtists(updated);
-  };
-  const removeArtist = (index: number) => {
-    setArtists(artists.filter((_, i) => i !== index));
-  };
+  const updatePerformer = (i: number, field: keyof PerformerEntry, value: string) =>
+    setPerformers(performers.map((p, idx) => (idx === i ? { ...p, [field]: value } : p)));
 
-  // YouTube Links management
-  const addLink = () => setYoutubeLinks([...youtubeLinks, { title: '', url: '' }]);
-  const updateLink = (index: number, field: keyof YouTubeLinkEntry, value: string) => {
-    const updated = [...youtubeLinks];
-    updated[index][field] = value;
-    setYoutubeLinks(updated);
-  };
-  const removeLink = (index: number) => {
-    setYoutubeLinks(youtubeLinks.filter((_, i) => i !== index));
+  const updateTransmission = (i: number, patch: Partial<TransmissionEntry>) =>
+    setTransmissions(transmissions.map((t, idx) => (idx === i ? { ...t, ...patch } : t)));
+
+  // On pasting a YouTube URL, remember the original title (and use it as the display name if empty)
+  const fillYouTubeTitle = async (i: number) => {
+    const t = transmissions[i];
+    if (!t?.url || t.originalTitle) return;
+    try {
+      const res = await fetch(`/api/admin/youtube-meta?url=${encodeURIComponent(t.url)}`);
+      const d = await res.json();
+      if (d.success) {
+        setTransmissions((prev) =>
+          prev.map((x, idx) => (idx === i ? { ...x, originalTitle: d.data.title, title: x.title || d.data.title } : x))
+        );
+      }
+    } catch {
+      /* title stays manual */
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     setError(null);
-
-    const cleanArtists = artists.filter((a) => a.name.trim() !== '');
-    const cleanLinks = youtubeLinks.filter((l) => l.url.trim() !== '');
 
     const method = initialData?.id ? 'PUT' : 'POST';
     const url = initialData?.id ? `/api/admin/editions/${initialData.id}` : '/api/admin/editions';
@@ -101,23 +133,29 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
           name,
           slug: slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
           description,
-          eventDate: eventDate ? new Date(eventDate).toISOString() : null,
-          posterUrl,
-          workshopPosterUrl,
-          isLatestRitual,
+          eventDate: eventDate || null,
+          venue,
+          city,
           isActive,
           sortOrder,
-          artists: cleanArtists,
-          youtubeLinks: cleanLinks,
+          isLatestRitual,
+          posterUrl,
+          ticketUrl,
+          ticketLabel,
+          hasWorkshop,
+          workshopTitle,
+          workshopDescription,
+          workshopDateTime: workshopDateTime ? new Date(workshopDateTime).toISOString() : null,
+          workshopPosterUrl,
+          workshopTicketUrl,
+          performers,
+          transmissions: transmissions.map((t) => ({ ...t, performerKey: t.performerKey || null })),
         }),
       });
 
       const data = await res.json();
-      if (data.success) {
-        onSuccess();
-      } else {
-        throw new Error(data.error || 'Failed to save edition');
-      }
+      if (!data.success) throw new Error(data.error || 'Failed to save edition');
+      onSuccess();
     } catch (err: any) {
       setError(err.message || 'Error saving edition');
     } finally {
@@ -135,259 +173,244 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
         <div className="px-8 py-5 border-b border-white/10 bg-[#99ccff]/5 flex items-center justify-between">
           <div>
             <h3 className="text-lg font-bold text-[#99ccff]">
-              {initialData ? '🏛️ EDIT EDITION & RITUAL' : '🏛️ CREATE NEW EDITION'}
+              {initialData ? '🏛️ EDIT EDITION' : '🏛️ CREATE NEW EDITION'}
             </h3>
-            <p className="text-xs text-white/40">Configure event details, posters, artists, and links</p>
+            <p className="text-xs text-white/40">Everything for one edition lives here: ritual, workshop, roster, videos.</p>
           </div>
           <button onClick={onClose} className="text-white/40 hover:text-white text-base">
             ✕
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[80vh] overflow-y-auto">
+        <div className="flex border-b border-white/10 px-4 overflow-x-auto">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`px-4 py-3 text-[10px] font-bold tracking-widest whitespace-nowrap border-b-2 transition-colors ${
+                tab === t.id ? 'border-[#99ccff] text-[#99ccff]' : 'border-transparent text-white/40 hover:text-white'
+              }`}
+            >
+              {t.label}
+              {t.id === 'performers' && performers.length > 0 && ` (${performers.length})`}
+              {t.id === 'transmissions' && transmissions.length > 0 && ` (${transmissions.length})`}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[65vh] overflow-y-auto">
           {error && (
-            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-xs">
-              [ERROR] {error}
+            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-xs">[ERROR] {error}</div>
+          )}
+
+          {/* ---------------- DETAILS ---------------- */}
+          {tab === 'details' && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Edition Title *</label>
+                  <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. OMNIVOID Edition 010" required className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>URL Slug *</label>
+                  <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="e.g. edition-010" required className={inputCls} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className={labelCls}>Event Date (1 day)</label>
+                  <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Venue</label>
+                  <input type="text" value={venue} onChange={(e) => setVenue(e.target.value)} className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>City</label>
+                  <input type="text" value={city} onChange={(e) => setCity(e.target.value)} className={inputCls} />
+                </div>
+              </div>
+
+              <div>
+                <label className={labelCls}>Description / Overview</label>
+                <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className={inputCls} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Sort Order</label>
+                  <input type="number" value={sortOrder} onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)} className={inputCls} />
+                </div>
+                <label className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded cursor-pointer">
+                  <span className="text-[10px] font-bold text-white/60">VISIBLE ON SITE</span>
+                  <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="w-4 h-4 accent-[#99ccff]" />
+                </label>
+              </div>
+            </>
+          )}
+
+          {/* ---------------- RITUAL ---------------- */}
+          {tab === 'ritual' && (
+            <>
+              <label className="flex items-center justify-between p-4 bg-[#99ccff]/5 border border-[#99ccff]/30 rounded cursor-pointer">
+                <div>
+                  <span className="text-xs font-bold text-[#99ccff] block">★ LATEST RITUAL</span>
+                  <span className="text-[10px] text-white/40">
+                    The upcoming edition. Only one at a time. Saving this clears the flag and ticket links on the previous one.
+                  </span>
+                </div>
+                <input type="checkbox" checked={isLatestRitual} onChange={(e) => setIsLatestRitual(e.target.checked)} className="w-5 h-5 accent-[#99ccff]" />
+              </label>
+
+              <ImageUploadField label="Main Edition Poster" value={posterUrl} onChange={setPosterUrl} />
+
+              {isLatestRitual ? (
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-2">
+                    <label className={labelCls}>Ticket Link</label>
+                    <input type="url" value={ticketUrl} onChange={(e) => setTicketUrl(e.target.value)} placeholder="https://..." className={inputCls} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Button Label</label>
+                    <input type="text" value={ticketLabel} onChange={(e) => setTicketLabel(e.target.value)} placeholder="GET TICKETS / SOLD OUT" className={inputCls} />
+                  </div>
+                </div>
+              ) : (
+                <p className="text-[10px] text-white/30 border border-dashed border-white/10 rounded p-3">
+                  Ticket links are only available on the Latest Ritual, so old links never linger. Any existing ticket link is cleared when this edition is saved without the flag.
+                </p>
+              )}
+            </>
+          )}
+
+          {/* ---------------- WORKSHOP ---------------- */}
+          {tab === 'workshop' && (
+            <>
+              <label className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded cursor-pointer">
+                <span className="text-xs font-bold text-emerald-400">THIS EDITION HAS A WORKSHOP</span>
+                <input type="checkbox" checked={hasWorkshop} onChange={(e) => setHasWorkshop(e.target.checked)} className="w-5 h-5 accent-emerald-400" />
+              </label>
+
+              {hasWorkshop && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelCls}>Workshop Title</label>
+                      <input type="text" value={workshopTitle} onChange={(e) => setWorkshopTitle(e.target.value)} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Date & Time</label>
+                      <input type="datetime-local" value={workshopDateTime} onChange={(e) => setWorkshopDateTime(e.target.value)} className={inputCls} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Workshop Description</label>
+                    <textarea value={workshopDescription} onChange={(e) => setWorkshopDescription(e.target.value)} rows={4} className={inputCls} />
+                  </div>
+                  <ImageUploadField label="Workshop Poster" value={workshopPosterUrl} onChange={setWorkshopPosterUrl} />
+                  {isLatestRitual ? (
+                    <div>
+                      <label className={labelCls}>Workshop Ticket Link</label>
+                      <input type="url" value={workshopTicketUrl} onChange={(e) => setWorkshopTicketUrl(e.target.value)} placeholder="https://..." className={inputCls} />
+                    </div>
+                  ) : (
+                    <p className="text-[10px] text-white/30 border border-dashed border-white/10 rounded p-3">
+                      Workshop ticket links are only kept on the Latest Ritual.
+                    </p>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {/* ---------------- PERFORMERS ---------------- */}
+          {tab === 'performers' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#99ccff] uppercase">🎭 Roster</span>
+                <button
+                  type="button"
+                  onClick={() => setPerformers([...performers, { key: tempKey(), name: '', instagram: '', youtube: '' }])}
+                  className="text-[10px] bg-[#99ccff]/10 text-[#99ccff] px-3 py-1 rounded font-bold border border-[#99ccff]/20 hover:bg-[#99ccff]/20"
+                >
+                  + ADD PERFORMER
+                </button>
+              </div>
+              {performers.length === 0 && <p className="text-xs text-white/30">No performers yet. Roster can be filled in later.</p>}
+              {performers.map((p, i) => (
+                <div key={p.key} className="grid grid-cols-12 gap-2 items-center bg-black/40 p-2.5 rounded border border-white/5">
+                  <input className={`col-span-4 ${inputCls}`} value={p.name} onChange={(e) => updatePerformer(i, 'name', e.target.value)} placeholder="Name *" />
+                  <input className={`col-span-3 ${inputCls}`} value={p.instagram} onChange={(e) => updatePerformer(i, 'instagram', e.target.value)} placeholder="@instagram" />
+                  <input className={`col-span-4 ${inputCls}`} value={p.youtube} onChange={(e) => updatePerformer(i, 'youtube', e.target.value)} placeholder="YouTube handle / URL" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPerformers(performers.filter((_, idx) => idx !== i));
+                      setTransmissions(transmissions.map((t) => (t.performerKey === p.key ? { ...t, performerKey: '' } : t)));
+                    }}
+                    className="col-span-1 text-red-400 hover:text-red-300 text-xs"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            {/* Edition Name */}
-            <div>
-              <label className="block text-[10px] font-bold text-white/40 uppercase mb-1">
-                Edition Title *
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. OMNIVOID Edition 010"
-                required
-                className="w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-xs text-white outline-none focus:border-[#99ccff]"
-              />
-            </div>
-
-            {/* URL Slug */}
-            <div>
-              <label className="block text-[10px] font-bold text-white/40 uppercase mb-1">
-                URL Slug *
-              </label>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-                placeholder="e.g. edition-010"
-                required
-                className="w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-xs text-white outline-none focus:border-[#99ccff]"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            {/* Single Event Date */}
-            <div>
-              <label className="block text-[10px] font-bold text-[#99ccff] uppercase mb-1">
-                Event Date (1 Day) *
-              </label>
-              <input
-                type="date"
-                value={eventDate}
-                onChange={(e) => setEventDate(e.target.value)}
-                required
-                className="w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-xs text-white outline-none focus:border-[#99ccff]"
-              />
-            </div>
-
-            {/* Sort Order */}
-            <div>
-              <label className="block text-[10px] font-bold text-white/40 uppercase mb-1">
-                Sort Order
-              </label>
-              <input
-                type="number"
-                value={sortOrder}
-                onChange={(e) => setSortOrder(parseInt(e.target.value) || 0)}
-                className="w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-xs text-white outline-none focus:border-[#99ccff]"
-              />
-            </div>
-
-            {/* Set as Latest Ritual Toggle */}
-            <div className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded">
-              <div>
-                <span className="text-[10px] font-bold text-[#99ccff] block">LATEST RITUAL</span>
-                <span className="text-[9px] text-white/40">Set as active ritual</span>
+          {/* ---------------- TRANSMISSIONS ---------------- */}
+          {tab === 'transmissions' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#99ccff] uppercase">📡 YouTube Transmissions</span>
+                <button
+                  type="button"
+                  onClick={() => setTransmissions([...transmissions, { title: '', originalTitle: '', url: '', kind: 'SET', performerKey: '' }])}
+                  className="text-[10px] bg-[#99ccff]/10 text-[#99ccff] px-3 py-1 rounded font-bold border border-[#99ccff]/20 hover:bg-[#99ccff]/20"
+                >
+                  + ADD VIDEO
+                </button>
               </div>
-              <input
-                type="checkbox"
-                checked={isLatestRitual}
-                onChange={(e) => setIsLatestRitual(e.target.checked)}
-                className="w-4 h-4 accent-[#99ccff] cursor-pointer"
-              />
+              {transmissions.length === 0 && <p className="text-xs text-white/30">No videos for this edition yet.</p>}
+              {transmissions.map((t, i) => (
+                <div key={i} className="space-y-2 bg-black/40 p-3 rounded border border-white/5">
+                  <div className="grid grid-cols-12 gap-2">
+                    <input className={`col-span-5 ${inputCls}`} value={t.title} onChange={(e) => updateTransmission(i, { title: e.target.value })} placeholder="Display name (shown on site)" />
+                    <input className={`col-span-6 ${inputCls}`} value={t.url} onChange={(e) => updateTransmission(i, { url: e.target.value })} onBlur={() => fillYouTubeTitle(i)} placeholder="https://www.youtube.com/watch?v=..." />
+                    <button type="button" onClick={() => setTransmissions(transmissions.filter((_, idx) => idx !== i))} className="col-span-1 text-red-400 hover:text-red-300 text-xs">
+                      ✕
+                    </button>
+                  </div>
+                  {t.originalTitle && t.originalTitle !== t.title && (
+                    <p className="text-[10px] text-white/30 truncate">YouTube title: {t.originalTitle}</p>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <select className={inputCls} value={t.performerKey} onChange={(e) => updateTransmission(i, { performerKey: e.target.value })}>
+                      <option value="">— No performer (edition-wide) —</option>
+                      {performers.filter((p) => p.name.trim()).map((p) => (
+                        <option key={p.key} value={p.key}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select className={inputCls} value={t.kind} onChange={(e) => updateTransmission(i, { kind: e.target.value as TransmissionEntry['kind'] })}>
+                      <option value="SET">Live set</option>
+                      <option value="WORKSHOP">Workshop</option>
+                      <option value="LABS">Labs</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-[10px] font-bold text-white/40 uppercase mb-1">
-              Description / Overview
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              placeholder="Overview of this edition..."
-              className="w-full bg-[#111] border border-[#333] rounded p-3 text-xs text-white outline-none focus:border-[#99ccff]"
-            />
-          </div>
-
-          {/* Posters */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] font-bold text-white/40 uppercase mb-1">
-                Main Edition Poster URL
-              </label>
-              <input
-                type="text"
-                value={posterUrl}
-                onChange={(e) => setPosterUrl(e.target.value)}
-                placeholder="https://... or Supabase storage path"
-                className="w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-xs text-white outline-none focus:border-[#99ccff]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-white/40 uppercase mb-1">
-                Workshop Poster URL
-              </label>
-              <input
-                type="text"
-                value={workshopPosterUrl}
-                onChange={(e) => setWorkshopPosterUrl(e.target.value)}
-                placeholder="https://... or Supabase storage path"
-                className="w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-xs text-white outline-none focus:border-[#99ccff]"
-              />
-            </div>
-          </div>
-
-          {/* Artists / Performers Section */}
-          <div className="p-4 bg-white/2 border border-white/10 rounded-xl space-y-3">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2">
-              <span className="text-xs font-bold text-[#99ccff] uppercase">
-                🎭 ARTISTS & PERFORMERS (INSTAGRAM & YOUTUBE HANDLES)
-              </span>
-              <button
-                type="button"
-                onClick={addArtist}
-                className="text-[10px] bg-[#99ccff]/10 text-[#99ccff] px-3 py-1 rounded font-bold border border-[#99ccff]/20 hover:bg-[#99ccff]/20"
-              >
-                + ADD ARTIST
-              </button>
-            </div>
-
-            {artists.map((artist, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-black/40 p-2.5 rounded border border-white/5">
-                <div className="col-span-4">
-                  <input
-                    type="text"
-                    value={artist.name}
-                    onChange={(e) => updateArtist(idx, 'name', e.target.value)}
-                    placeholder="Artist Name *"
-                    className="w-full bg-[#111] border border-[#333] rounded px-2.5 py-1.5 text-xs text-white outline-none"
-                  />
-                </div>
-                <div className="col-span-3">
-                  <input
-                    type="text"
-                    value={artist.instagram || ''}
-                    onChange={(e) => updateArtist(idx, 'instagram', e.target.value)}
-                    placeholder="Instagram (@handle)"
-                    className="w-full bg-[#111] border border-[#333] rounded px-2.5 py-1.5 text-xs text-white outline-none"
-                  />
-                </div>
-                <div className="col-span-4">
-                  <input
-                    type="text"
-                    value={artist.youtube || ''}
-                    onChange={(e) => updateArtist(idx, 'youtube', e.target.value)}
-                    placeholder="YouTube Handle / URL"
-                    className="w-full bg-[#111] border border-[#333] rounded px-2.5 py-1.5 text-xs text-white outline-none"
-                  />
-                </div>
-                <div className="col-span-1 text-right">
-                  <button
-                    type="button"
-                    onClick={() => removeArtist(idx)}
-                    className="text-red-400 hover:text-red-300 text-xs"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* YouTube Transmission Links per Edition */}
-          <div className="p-4 bg-white/2 border border-white/10 rounded-xl space-y-3">
-            <div className="flex items-center justify-between border-b border-white/10 pb-2">
-              <span className="text-xs font-bold text-[#99ccff] uppercase">
-                📡 EDITION YOUTUBE TRANSMISSIONS
-              </span>
-              <button
-                type="button"
-                onClick={addLink}
-                className="text-[10px] bg-[#99ccff]/10 text-[#99ccff] px-3 py-1 rounded font-bold border border-[#99ccff]/20 hover:bg-[#99ccff]/20"
-              >
-                + ADD YOUTUBE LINK
-              </button>
-            </div>
-
-            {youtubeLinks.map((link, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-black/40 p-2.5 rounded border border-white/5">
-                <div className="col-span-5">
-                  <input
-                    type="text"
-                    value={link.title}
-                    onChange={(e) => updateLink(idx, 'title', e.target.value)}
-                    placeholder="Video Title"
-                    className="w-full bg-[#111] border border-[#333] rounded px-2.5 py-1.5 text-xs text-white outline-none"
-                  />
-                </div>
-                <div className="col-span-6">
-                  <input
-                    type="text"
-                    value={link.url}
-                    onChange={(e) => updateLink(idx, 'url', e.target.value)}
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    className="w-full bg-[#111] border border-[#333] rounded px-2.5 py-1.5 text-xs text-white outline-none"
-                  />
-                </div>
-                <div className="col-span-1 text-right">
-                  <button
-                    type="button"
-                    onClick={() => removeLink(idx)}
-                    className="text-red-400 hover:text-red-300 text-xs"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          )}
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSaving}
-              className="px-5 py-2 text-xs font-bold text-white/40 hover:text-white"
-            >
+            <button type="button" onClick={onClose} disabled={isSaving} className="px-5 py-2 text-xs font-bold text-white/40 hover:text-white">
               CANCEL
             </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="bg-[#99ccff] text-[#050505] px-6 py-2 rounded-lg font-bold text-xs hover:bg-[#7ab8e6] transition-all disabled:opacity-50"
-            >
+            <button type="submit" disabled={isSaving} className="bg-[#99ccff] text-[#050505] px-6 py-2 rounded-lg font-bold text-xs hover:bg-[#7ab8e6] transition-all disabled:opacity-50">
               {isSaving ? 'SAVING...' : 'SAVE EDITION'}
             </button>
           </div>

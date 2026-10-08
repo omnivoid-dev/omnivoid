@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 
 export interface Tab {
@@ -17,6 +17,8 @@ interface RetroWindowProps {
   onClose: () => void;
   position?: { top: string; left: string };
   tabs?: Tab[];
+  /** When provided, rendered in the window body instead of the HTML `content` string. */
+  children?: ReactNode;
 }
 
 export function RetroWindow({ 
@@ -26,7 +28,8 @@ export function RetroWindow({
   isOpen, 
   onClose,
   position = { top: '50%', left: '50%' },
-  tabs = []
+  tabs = [],
+  children
 }: RetroWindowProps) {
   const [activeTab, setActiveTab] = useState(0);
   const windowRef = useRef<HTMLDivElement>(null);
@@ -220,8 +223,10 @@ export function RetroWindow({
                 margin: hasTabs ? '0px' : '1px',
                 lineHeight: '1.4',
               }}
-              dangerouslySetInnerHTML={{ __html: getCurrentContent() }}
-            />
+              {...(children ? {} : { dangerouslySetInnerHTML: { __html: getCurrentContent() } })}
+            >
+              {children}
+            </div>
           </motion.div>
         </>
       )}

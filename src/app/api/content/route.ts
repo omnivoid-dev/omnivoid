@@ -4,6 +4,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { editionInclude } from '@/lib/editions';
+import { BRANDING_KEY, resolveBranding } from '@/lib/branding';
 import { readdir } from 'fs/promises';
 import { join } from 'path';
 
@@ -39,6 +41,38 @@ async function scanDirectory(dirPath: string, baseUrl: string): Promise<{ id: st
   }
 }
 
+function serializeEdition(e: any) {
+  return {
+    id: e.id,
+    name: e.name,
+    slug: e.slug,
+    description: e.description,
+    eventDate: e.eventDate,
+    venue: e.venue,
+    city: e.city,
+    posterUrl: e.posterUrl,
+    isLatestRitual: e.isLatestRitual,
+    ticketUrl: e.isLatestRitual ? e.ticketUrl : null,
+    ticketLabel: e.isLatestRitual ? e.ticketLabel : null,
+    hasWorkshop: e.hasWorkshop,
+    workshopTitle: e.workshopTitle,
+    workshopDescription: e.workshopDescription,
+    workshopDateTime: e.workshopDateTime,
+    workshopPosterUrl: e.workshopPosterUrl,
+    workshopTicketUrl: e.isLatestRitual ? e.workshopTicketUrl : null,
+    themeColors: e.themeColors,
+    isActive: e.isActive,
+    sortOrder: e.sortOrder,
+    performers: (e.performers || []).map((p: any) => ({
+      id: p.id, name: p.name, instagram: p.instagram, youtube: p.youtube,
+    })),
+    transmissions: (e.transmissions || []).filter((t: any) => t.isActive).map((t: any) => ({
+      id: t.id, title: t.title, url: t.url, youtubeId: t.youtubeId, thumbnailUrl: t.thumbnailUrl,
+      kind: t.kind, performerId: t.performerId,
+    })),
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const publicDir = join(process.cwd(), 'public');
@@ -59,6 +93,8 @@ export async function GET(request: NextRequest) {
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
       }).catch(() => []),
       prisma.edition.findMany({
+        where: { isActive: true },
+        include: editionInclude,
         orderBy: [{ isLatestRitual: 'desc' }, { sortOrder: 'asc' }],
       }).catch(() => []),
       prisma.resource.findMany({
@@ -66,6 +102,8 @@ export async function GET(request: NextRequest) {
         orderBy: { sortOrder: 'asc' },
       }).catch(() => []),
     ]);
+
+    const brandingRow = await prisma.siteSettings.findUnique({ where: { key: BRANDING_KEY } }).catch(() => null);
 
     const activeEdition = editions.find(e => e.isLatestRitual) || editions.find(e => e.isActive) || editions[0];
 
@@ -92,6 +130,7 @@ export async function GET(request: NextRequest) {
       path: res.url || res.filePath || '',
       type: res.type.toLowerCase(),
       editionId: res.editionId,
+      performerId: res.performerId,
       metadata: res.metadata,
     }));
 
@@ -124,34 +163,11 @@ export async function GET(request: NextRequest) {
         links,
         documents,
         resources,
+        branding: resolveBranding(brandingRow?.value),
         conundrumText: conundrumDoc?.content || 'OMNIVOID is an autonomous sonic & visual research lab.',
         contactInfo: contactData,
-        editions: editions.map(e => ({
-          id: e.id,
-          name: e.name,
-          slug: e.slug,
-          description: e.description,
-          posterUrl: e.posterUrl,
-          workshopPosterUrl: e.workshopPosterUrl,
-          eventDate: e.eventDate,
-          artists: e.artists,
-          youtubeLinks: e.youtubeLinks,
-          isLatestRitual: e.isLatestRitual,
-          isActive: e.isActive,
-          sortOrder: e.sortOrder,
-        })),
-        currentEdition: activeEdition ? {
-          id: activeEdition.id,
-          name: activeEdition.name,
-          slug: activeEdition.slug,
-          description: activeEdition.description,
-          posterUrl: activeEdition.posterUrl,
-          workshopPosterUrl: activeEdition.workshopPosterUrl,
-          eventDate: activeEdition.eventDate,
-          artists: activeEdition.artists,
-          youtubeLinks: activeEdition.youtubeLinks,
-          isLatestRitual: activeEdition.isLatestRitual,
-        } : null,
+        editions: editions.map(serializeEdition),
+        currentEdition: activeEdition ? serializeEdition(activeEdition) : null,
       },
     });
   } catch (error) {

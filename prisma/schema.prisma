@@ -19,29 +19,98 @@ datasource db {
 // EDITIONS - Concert series editions
 // ============================================
 model Edition {
-  id                String   @id @default(cuid())
-  name              String   // "OMNIVOID 010"
-  slug              String   @unique // "010"
-  description       String?  // Edition description
-  posterUrl         String?  // Main edition poster URL
-  workshopPosterUrl String?  // Workshop poster URL
-  eventDate         DateTime? // Single event date
-  artists           Json?    // Array of { name, instagram, youtube }
-  youtubeLinks      Json?    // Array of { title, url }
-  isLatestRitual    Boolean  @default(false) // Set as Latest Ritual
-  themeColors       Json?    // { primary: "#99ccff", secondary: "#336699" }
-  isActive          Boolean  @default(true)
-  sortOrder         Int      @default(0)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  resources   Resource[]
-  gigs        Gig[]
-  links       Link[]
-  documents   Document[]
-  
+  id                  String    @id @default(cuid())
+  name                String    // "OMNIVOID 010"
+  slug                String    @unique // "010"
+  description         String?
+  eventDate           DateTime? // Single event day
+  venue               String?
+  city                String?
+
+  // Ritual slot
+  posterUrl           String?   // Main edition poster
+  isLatestRitual      Boolean   @default(false) // The upcoming edition. Only one at a time.
+  ticketUrl           String?   // Only kept while isLatestRitual (cleared by the API otherwise)
+  ticketLabel         String?   // "GET TICKETS" / "SOLD OUT"
+
+  // Workshop slot
+  hasWorkshop         Boolean   @default(false)
+  workshopTitle       String?
+  workshopDescription String?
+  workshopDateTime    DateTime?
+  workshopPosterUrl   String?
+  workshopTicketUrl   String?   // Only kept while isLatestRitual
+
+  themeColors         Json?     // { primary: "#99ccff", secondary: "#336699" } - per-edition site theme
+  isActive            Boolean   @default(true)
+  sortOrder           Int       @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  performers     Performer[]
+  transmissions  Transmission[]
+  resources      Resource[]
+  links          Link[]
+  documents      Document[]
+
   @@index([slug])
   @@index([isActive])
+  @@index([isLatestRitual])
+}
+
+// ============================================
+// PERFORMERS - Artists on an edition's roster
+// ============================================
+model Performer {
+  id        String   @id @default(cuid())
+  editionId String
+  edition   Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
+
+  name      String
+  instagram String?
+  youtube   String?  // Channel handle or URL
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transmissions Transmission[]
+  resources     Resource[]
+
+  @@index([editionId])
+  @@index([name])
+}
+
+// ============================================
+// TRANSMISSIONS - YouTube videos belonging to an edition (optionally to a performer)
+// ============================================
+model Transmission {
+  id           String           @id @default(cuid())
+  editionId    String
+  edition      Edition          @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  performerId  String?
+  performer    Performer?       @relation(fields: [performerId], references: [id], onDelete: SetNull)
+
+  title        String           // Display name shown on the site (editable)
+  originalTitle String?         // Title as it appears on YouTube
+  url          String
+  youtubeId    String?
+  thumbnailUrl String?
+  kind         TransmissionKind @default(SET)
+  isActive     Boolean          @default(true)
+  sortOrder    Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([editionId])
+  @@index([performerId])
+  @@index([kind])
+}
+
+enum TransmissionKind {
+  SET       // Live performance
+  WORKSHOP
+  LABS
+  OTHER
 }
 
 // ============================================
@@ -51,6 +120,8 @@ model Resource {
   id          String   @id @default(cuid())
   editionId   String
   edition     Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  performerId String?
+  performer   Performer? @relation(fields: [performerId], references: [id], onDelete: SetNull)
   
   type        ResourceType // AUDIO, VIDEO, POSTER, DOCUMENT, LINK, GALLERY
   title       String
@@ -75,6 +146,7 @@ model Resource {
   updatedAt   DateTime @updatedAt
   
   @@index([editionId])
+  @@index([performerId])
   @@index([type])
   @@index([isActive])
 }
@@ -88,50 +160,6 @@ enum ResourceType {
   GALLERY      // Images
   LOGO         // Edition logos
   TEXT_CONTENT // Text content (replaces .txt files)
-}
-
-// ============================================
-// GIGS - Concert/event entries (Latest Rituals)
-// ============================================
-model Gig {
-  id          String   @id @default(cuid())
-  editionId   String?
-  edition     Edition? @relation(fields: [editionId], references: [id], onDelete: Cascade)
-  
-  title       String   // Gig title
-  subtitle    String?  // Optional subtitle
-  description String?  // Full description
-  
-  // Event details
-  date        DateTime // Event date/time
-  venue       String?  // Venue name
-  location    String?  // City/address
-  address     String?  // Full address
-  
-  // Workshop tab content
-  hasWorkshop Boolean  @default(false)
-  workshopTitle    String?
-  workshopDescription String?
-  workshopMaterials   String? // JSON array of materials needed
-  workshopTime    DateTime?
-  
-  // Media
-  images      String[] // Array of image URLs
-  videoUrl    String?  // YouTube or other video
-  mixcloudUrl String?  // Mixcloud show URL
-  
-  // Status
-  isFeatured  Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  isPast      Boolean  @default(false)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@index([editionId])
-  @@index([date])
-  @@index([isActive])
-  @@index([isFeatured])
 }
 
 // ============================================

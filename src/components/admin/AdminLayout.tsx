@@ -34,8 +34,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const navItems = [
     { label: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
     { label: 'Editions & Rituals', href: '/admin/editions', icon: '🏛️' },
-    { label: 'Research PDFs & MP3s', href: '/admin/resources', icon: '📚' },
-    { label: 'YouTube Transmissions', href: '/admin/links', icon: '📡' },
+    { label: 'Transmissions (YouTube)', href: '/admin/transmissions', icon: '📡' },
+    { label: 'Research Papers', href: '/admin/research', icon: '📚' },
+    { label: 'Audio Player', href: '/admin/audio', icon: '🎧' },
+    { label: 'Media Library', href: '/admin/media', icon: '🖼️' },
   ];
 
   const handleLogout = async () => {

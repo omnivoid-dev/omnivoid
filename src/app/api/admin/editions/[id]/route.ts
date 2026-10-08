@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAdminToken } from '@/lib/auth';
+import { saveEdition, editionInclude } from '@/lib/editions';
 
 export async function GET(
   request: NextRequest,
@@ -13,6 +14,7 @@ export async function GET(
   try {
     const edition = await prisma.edition.findUnique({
       where: { id: params.id },
+      include: editionInclude,
     });
 
     if (!edition) {
@@ -34,23 +36,7 @@ export async function PUT(
     if (!authResult.success) return NextResponse.json({ success: false, error: authResult.error }, { status: 401 });
 
     const body = await request.json();
-
-    if (body.eventDate) {
-      body.eventDate = new Date(body.eventDate);
-    }
-
-    // If setting as Latest Ritual, unset other editions first
-    if (body.isLatestRitual) {
-      await prisma.edition.updateMany({
-        where: { id: { not: params.id } },
-        data: { isLatestRitual: false },
-      });
-    }
-
-    const edition = await prisma.edition.update({
-      where: { id: params.id },
-      data: body,
-    });
+    const edition = await saveEdition(params.id, body);
 
     return NextResponse.json({ success: true, data: edition, message: 'Edition updated successfully' });
   } catch (error: any) {

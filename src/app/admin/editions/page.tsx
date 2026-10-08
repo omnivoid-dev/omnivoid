@@ -16,8 +16,9 @@ interface Edition {
   isLatestRitual?: boolean;
   isActive: boolean;
   sortOrder: number;
-  artists?: any;
-  youtubeLinks?: any;
+  performers?: any[];
+  transmissions?: any[];
+  ticketUrl?: string;
 }
 
 export default function EditionsPage() {
@@ -105,6 +106,20 @@ export default function EditionsPage() {
                   {item.isActive ? 'ACTIVE' : 'ARCHIVED'}
                 </span>
               </div>
+            ),
+          },
+          {
+            header: 'Roster / Videos',
+            accessor: (item) => (
+              <span className="text-xs text-white/60 font-mono">
+                {item.performers?.length || 0} artists · {item.transmissions?.length || 0} videos
+              </span>
+            ),
+          },
+          {
+            header: 'Ticket',
+            accessor: (item) => (
+              <span className="text-xs text-white/60 font-mono">{item.isLatestRitual && item.ticketUrl ? '🎟 set' : '—'}</span>
             ),
           },
           { header: 'Order', accessor: 'sortOrder' },

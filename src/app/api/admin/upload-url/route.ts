@@ -21,7 +21,25 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { bucket = 'media', filename } = body;
+    const { bucket = 'media', filename, contentType = '', size } = body;
+
+    // Size limits by file type. `size` is the size the browser declares; the browser checks it too.
+    const MB = 1024 * 1024;
+    const limit =
+      contentType === 'application/pdf' ? 10 * MB
+      : contentType === 'image/svg+xml' ? 1 * MB
+      : contentType.startsWith('image/') ? 8 * MB
+      : contentType.startsWith('audio/') ? 50 * MB
+      : null;
+    if (limit && typeof size === 'number' && size > limit) {
+      return NextResponse.json(
+        { success: false, error: `File too large. Max ${limit / MB}MB for this file type.` },
+        { status: 413 }
+      );
+    }
+    if (contentType === 'application/pdf' && typeof size !== 'number') {
+      return NextResponse.json({ success: false, error: 'File size is required for PDF uploads' }, { status: 400 });
+    }
 
     if (!filename) {
       return NextResponse.json(
