@@ -35,17 +35,18 @@ const isManaged = (path: string) => MANAGED_FOLDERS.includes(path.split('/')[0])
 
 /** Every storage path currently referenced by a saved record. */
 async function collectReferences(): Promise<string> {
-  const [docs, editions, resources, links, radio, settings] = await Promise.all([
+  const [docs, editions, resources, links, radio, profiles, settings] = await Promise.all([
     prisma.document.findMany({ select: { fileUrl: true, thumbnailUrl: true } }),
     prisma.edition.findMany({ select: { posterUrl: true, workshopPosterUrl: true } }),
     prisma.resource.findMany({ select: { url: true, filePath: true, thumbnailUrl: true } }),
     prisma.link.findMany({ select: { url: true } }),
     prisma.radioShow.findMany({ select: { thumbnailUrl: true } }),
+    prisma.profile.findMany({ select: { imageUrl: true } }),
     prisma.siteSettings.findMany({ select: { value: true } }),
   ]);
 
   // One big haystack; a path counts as referenced if it appears anywhere in it.
-  return JSON.stringify([docs, editions, resources, links, radio, settings.map((s) => s.value)]);
+  return JSON.stringify([docs, editions, resources, links, radio, profiles, settings.map((s) => s.value)]);
 }
 
 /** Extract every storage path mentioned in an arbitrary JSON value (used for settings diffs). */

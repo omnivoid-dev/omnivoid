@@ -66,6 +66,8 @@ model Performer {
   id        String   @id @default(cuid())
   editionId String
   edition   Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  profileId String?  // Shared artist profile (bio, photo) across editions
+  profile   Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
 
   name      String
   instagram String?
@@ -79,7 +81,40 @@ model Performer {
   radioShows    RadioShow[]
 
   @@index([editionId])
+  @@index([profileId])
   @@index([name])
+}
+
+// ============================================
+// PROFILES - Shared write-ups for performers, collaborators and affiliates
+// ============================================
+model Profile {
+  id        String      @id @default(cuid())
+  type      ProfileType
+  name      String
+  slug      String
+  role      String?     // Performer: "Producer / DJ", Collaborator: role, Affiliate: category
+  bio       String?     // The write-up (Markdown-ready plain text)
+  imageUrl  String?     // Photo or logo (WebP, optimised on upload)
+  website   String?
+  instagram String?
+  youtube   String?
+  isActive  Boolean     @default(true)
+  sortOrder Int         @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  performers Performer[] // Edition appearances (performers only)
+
+  @@unique([type, slug])
+  @@index([type])
+  @@index([isActive])
+}
+
+enum ProfileType {
+  PERFORMER
+  COLLABORATOR
+  AFFILIATE
 }
 
 // ============================================

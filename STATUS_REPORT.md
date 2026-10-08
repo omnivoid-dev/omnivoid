@@ -36,7 +36,13 @@
 - **Save-and-purge** (`src/lib/storage.ts`): replaced or deleted papers, posters, tracks and branding images remove their old files unless something still references them. A Dashboard **Storage cleanup** panel finds uploads that were never saved (older than 24h) and purges them on request.
 - Uploads now keep their folder (`research/`, `audio/`, `posters/`, `thumbnails/`, `branding/`).
 
-### 7. Foundation (earlier work)
+### 7. Profiles (Performers, Collaborators, Affiliates) and Menu Names — admin only
+- **Shared `Profile` model** with a type; one reusable editor (`ProfileManager.tsx`) drives `/admin/performers`, `/admin/collaborators` and `/admin/affiliates`: photo or logo (WebP-optimised), role or category, write-up, website, Instagram, YouTube, order, visibility.
+- Edition performers now link to a shared profile (found or created by name when an edition is saved); a back-fill script handles existing rows. Profile images take part in storage cleanup.
+- **Menu names**: editable per menu entry from the Dashboard branding panel (`siteBranding.labels`); three new slots for the new sections.
+- `/api/content` exposes `profiles` and `branding.labels`. The public windows and applying the menu names are deferred until the remaining back-end work is done.
+
+### 8. Foundation (earlier work)
 - Supabase Postgres + Supabase Auth with route protection via `middleware.ts`.
 - Web Audio analyzer hook, audio player window, and Agent dialogue overlay.
 - Direct browser-to-Supabase signed-URL uploads (`/api/admin/upload-url`, with per-type size limits).
@@ -44,17 +50,17 @@
 ---
 
 ## ⚠️ Known Gaps
-- **Database not yet updated.** `npx prisma db push` is still required for `Transmission`, `Performer`, `RadioShow` and the new `Document.thumbnailUrl`, `Resource.performerId` and `Transmission.originalTitle` columns. Then run `scripts/migrate-links-to-transmissions.ts` and `scripts/seed-radio.ts`.
+- **Database not yet updated.** `npx prisma db push` is still required for `Transmission`, `Performer`, `RadioShow` and the new `Profile`, `Document.thumbnailUrl`, `Resource.performerId`, `Performer.profileId` and `Transmission.originalTitle`. Then run `scripts/migrate-links-to-transmissions.ts`, `scripts/seed-radio.ts` and `scripts/migrate-performers-to-profiles.ts`.
 - The legacy YouTube `Link` rows remain in the database after migration, pending cleanup once the new site is verified.
 - Performers are per edition, so the same artist on two editions is two rows (search by name finds both). A public Performers page will need a shared artist record.
 - Files uploaded before this release sit in the storage bucket root and are not covered by automatic cleanup; legacy `docs/` and `gallery/` are never purged.
 - The 10MB PDF limit relies on the size the browser declares (images are enforced server-side). Storage cleanup is manual, not scheduled.
-- Menu link names are still fixed in code.
+- Public PERFORMERS / COLLABORATORS / AFFILIATES windows are not built, and the public menu does not yet read the custom menu names (admin side done).
 - Edition theme switching is not wired up yet (data field exists).
 - Starfield audio reactivity is disconnected, and the plexus does not react to audio.
 
 ## 📈 System Summary
-* **Database**: Supabase Postgres via Prisma (Edition, Performer, Transmission, RadioShow, Resource, Link, Document, SiteSettings)
+* **Database**: Supabase Postgres via Prisma (Edition, Performer, Profile, Transmission, RadioShow, Resource, Link, Document, SiteSettings)
 * **Auth**: Supabase Auth (`@supabase/ssr`)
 * **Storage**: Supabase Storage (`media` bucket: `audio/`, `research/`, `posters/`, `thumbnails/`, `branding/`)
 * **Visuals**: 2D plexus agents (always on), Three.js starfield (toggle, off by default)

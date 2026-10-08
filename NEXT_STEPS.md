@@ -9,7 +9,7 @@
 * Serverless image optimiser, save-and-purge storage cleanup
 * Plexus background restored; starfield behind a toggle (off by default)
 
-> **Deploy first:** `npx prisma db push`, `npx prisma generate`, then `scripts/migrate-links-to-transmissions.ts` and `scripts/seed-radio.ts`.
+> **Deploy first:** `npx prisma db push`, `npx prisma generate`, then `scripts/migrate-links-to-transmissions.ts`, `scripts/seed-radio.ts` and `scripts/migrate-performers-to-profiles.ts`.
 
 ---
 
@@ -26,23 +26,14 @@
 * Map the bands to specific visuals (for example bass to agent size and connection distance, treble to colour or sparkle, beat to a pulse) and make the intensity adjustable.
 * Fix the effect's dependence on play state so the scene is not rebuilt when audio starts or stops.
 
-### 3. 🎤 Performers Page
-* A public PERFORMERS window and an admin page for managing performers on their own, with a **write-up** (bio) per performer, photo, and Instagram / YouTube handles.
-* Performers are currently per edition, so this needs a shared artist record that links to each edition they played. Migrate the existing rows and merge duplicates by name.
-* From a performer's page: their editions, videos (transmissions), audio tracks and radio shows.
-
-### 4. 🤝 Collaborators Page
-* A COLLABORATORS window and admin page: name, logo or photo, role, **write-up**, and links.
-* Same editing pattern as performers (write-up, image uploaded through the WebP optimiser, order, visibility).
-
-### 5. 🏢 Affiliates Page
-* An AFFILIATES window and admin page for businesses aligned with OMNIVOID LABS: name, logo, **write-up**, website and social links.
-* Consider one shared "people and organisations" model with a type (Performer, Collaborator, Affiliate) so the three pages share one editor, rather than three copies.
-* Decide how write-ups are authored (plain text with line breaks, Markdown, or a rich-text editor) and sanitise them on display.
-
-### 6. 🧭 Dynamic Menu Link Names
-* Make the menu labels editable from the Dashboard (RESEARCH, RITUALS, TRANSMISSIONS, RADIO, GALLERY, LABS, CONUNDRUM, CONTACT, and the new PERFORMERS, COLLABORATORS, AFFILIATES) alongside the icon controls.
-* Store them in the `siteBranding` setting and apply them in the Start menu and window titles. Keep the built-in names as defaults.
+### 3-6. Performers, Collaborators, Affiliates, Menu Names — ADMIN BUILT, public pages deferred
+Built as one shared `Profile` model (type PERFORMER / COLLABORATOR / AFFILIATE) with one editor and three admin pages.
+* `/admin/performers`, `/admin/collaborators`, `/admin/affiliates`: name, role or category, photo or logo (3MB, optimised to WebP), **write-up**, website, Instagram, YouTube, order and visibility.
+* Performers link to edition appearances: adding a performer to an edition finds or creates their shared profile by name (case-insensitive). `scripts/migrate-performers-to-profiles.ts` back-fills the existing rows.
+* Menu names: each menu entry on the Dashboard branding panel has a name field (empty = default). Stored in `siteBranding.labels`, with three new icon/name slots for the new sections.
+* `/api/content` already returns `profiles` (with each performer's editions) and `branding.labels`, ready for the front end.
+* **To deploy:** `npx prisma db push`, `npx prisma generate`, then `scripts/migrate-performers-to-profiles.ts`.
+* **Deferred (front end, do together):** PERFORMERS, COLLABORATORS and AFFILIATES windows in the Start menu; apply `menuLabelFor()` to menu items and window titles; render the write-up (decide Markdown vs plain paragraphs, and sanitise); performer pages showing their editions, videos, tracks and radio shows; link edition line-up names to profiles.
 
 ---
 

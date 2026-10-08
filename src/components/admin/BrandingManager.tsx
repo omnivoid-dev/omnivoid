@@ -127,6 +127,12 @@ export default function BrandingManager() {
   };
 
   const logoSrc = branding.logo.url || DEFAULT_LOGO_URL;
+  const setLabel = (id: string, label: string) => {
+    const labels = { ...branding.labels };
+    if (label.trim()) labels[id] = label;
+    else delete labels[id];
+    setBranding({ ...branding, labels });
+  };
   const setIcon = (id: string, url: string | null) => {
     const icons = { ...branding.icons };
     if (url) icons[id] = url;
@@ -140,7 +146,7 @@ export default function BrandingManager() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-bold text-white">🎨 BRANDING — LOGO & MENU ICONS</h2>
+          <h2 className="text-base font-bold text-white">🎨 BRANDING — LOGO, MENU ICONS & MENU NAMES</h2>
           <p className="text-[11px] text-white/40">Upload an SVG (or PNG with transparency) to replace, then tint it with a solid colour or gradient.</p>
         </div>
         <button
@@ -184,6 +190,10 @@ export default function BrandingManager() {
           <TintControls tint={branding.iconTint} onChange={(iconTint) => setBranding({ ...branding, iconTint })} />
         </div>
 
+        <p className="text-[10px] text-white/40">
+          Each card sets one menu entry: type a name to rename it (leave empty for the default shown in grey), or replace its icon.
+        </p>
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {MENU_ICON_SLOTS.map((slot) => {
             const url = iconUrlFor(branding, slot.id);
@@ -196,7 +206,14 @@ export default function BrandingManager() {
                     <span className="text-3xl">{slot.fallback}</span>
                   )}
                 </div>
-                <div className="text-[10px] font-bold text-white/70 tracking-widest">{slot.label.toUpperCase()}</div>
+                <input
+                  value={branding.labels[slot.id] ?? ''}
+                  onChange={(e) => setLabel(slot.id, e.target.value)}
+                  placeholder={slot.label.toUpperCase()}
+                  maxLength={24}
+                  aria-label={`Menu name for ${slot.label}`}
+                  className="w-full bg-[#111] border border-[#333] rounded px-2 py-1.5 text-[10px] font-bold tracking-widest text-center text-white placeholder:text-white/30 outline-none focus:border-[#99ccff]"
+                />
                 <div className="flex flex-col gap-1.5 items-center">
                   <UploadButton label="⬆ REPLACE" onUploaded={(u) => setIcon(slot.id, u)} onError={(t) => setMessage({ type: 'error', text: t })} />
                   {branding.icons[slot.id] && (

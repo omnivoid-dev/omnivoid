@@ -16,6 +16,8 @@ export interface SiteBranding {
   icons: Record<string, string>;
   /** One tint applied to every menu icon. */
   iconTint: Tint;
+  /** Per-section menu names (section id -> label). Missing = built-in name. */
+  labels: Record<string, string>;
 }
 
 export const BRANDING_KEY = 'siteBranding';
@@ -29,6 +31,7 @@ export const DEFAULT_BRANDING: SiteBranding = {
   logo: { url: null, tint: DEFAULT_TINT },
   icons: {},
   iconTint: DEFAULT_TINT,
+  labels: {},
 };
 
 /** Menu sections that carry an icon, with the built-in image (if the original project had one). */
@@ -39,6 +42,9 @@ export const MENU_ICON_SLOTS: { id: string; label: string; defaultUrl: string | 
   { id: 'radio', label: 'Radio', defaultUrl: '/menuicons/radio.png', fallback: '📻' },
   { id: 'gallery', label: 'Gallery', defaultUrl: '/menuicons/gallery.png', fallback: '🖼️' },
   { id: 'labs', label: 'Labs', defaultUrl: null, fallback: '🧪' },
+  { id: 'performers', label: 'Performers', defaultUrl: null, fallback: '🎤' },
+  { id: 'collaborators', label: 'Collaborators', defaultUrl: null, fallback: '🤝' },
+  { id: 'affiliates', label: 'Affiliates', defaultUrl: null, fallback: '🏢' },
   { id: 'conundrum', label: 'Conundrum', defaultUrl: '/menuicons/conundrum.png', fallback: '🧩' },
   { id: 'contact', label: 'Contact', defaultUrl: '/menuicons/contact.png', fallback: '📧' },
 ];
@@ -52,6 +58,7 @@ export function resolveBranding(stored: unknown): SiteBranding {
     logo: { url: s.logo?.url || null, tint: tintDefaults(s.logo?.tint) },
     icons: s.icons || {},
     iconTint: tintDefaults(s.iconTint),
+    labels: s.labels || {},
   };
 }
 
@@ -64,4 +71,10 @@ export function tintBackground(t: Tint): string | undefined {
 
 export function iconUrlFor(branding: SiteBranding, sectionId: string): string | null {
   return branding.icons[sectionId] || MENU_ICON_SLOTS.find((s) => s.id === sectionId)?.defaultUrl || null;
+}
+
+/** Menu name for a section: the admin override, else the built-in label. */
+export function menuLabelFor(branding: SiteBranding, sectionId: string): string {
+  const custom = branding.labels[sectionId]?.trim();
+  return custom || MENU_ICON_SLOTS.find((s) => s.id === sectionId)?.label.toUpperCase() || sectionId.toUpperCase();
 }

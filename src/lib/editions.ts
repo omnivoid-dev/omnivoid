@@ -10,6 +10,7 @@
 import { prisma } from '@/lib/prisma';
 import { getYouTubeId, youtubeThumbnail } from '@/lib/youtube';
 import { deleteIfUnreferenced } from '@/lib/storage';
+import { findOrCreatePerformerProfile } from '@/lib/profiles';
 
 export interface PerformerInput {
   key: string; // existing id or a client-side temp key
@@ -90,7 +91,9 @@ export async function saveEdition(id: string | null, body: any) {
 
     const idByKey = new Map<string, string>();
     for (const [i, p] of performers.entries()) {
-      const fields = { name: p.name.trim(), instagram: str(p.instagram), youtube: str(p.youtube), sortOrder: i };
+      // Each performer links to a shared profile (bio, photo), created on first appearance
+      const profileId = await findOrCreatePerformerProfile(tx, p.name, p.instagram, p.youtube);
+      const fields = { name: p.name.trim(), instagram: str(p.instagram), youtube: str(p.youtube), sortOrder: i, profileId };
       if (existingIds.has(p.key)) {
         await tx.performer.update({ where: { id: p.key }, data: fields });
         idByKey.set(p.key, p.key);
