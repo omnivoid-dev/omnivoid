@@ -103,6 +103,14 @@ export async function GET(request: NextRequest) {
       }).catch(() => []),
     ]);
 
+    const radioShows = await prisma.radioShow
+      .findMany({
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+        include: { edition: { select: { name: true } }, performer: { select: { name: true } } },
+      })
+      .catch(() => []);
+
     const brandingRow = await prisma.siteSettings.findUnique({ where: { key: BRANDING_KEY } }).catch(() => null);
 
     const activeEdition = editions.find(e => e.isLatestRitual) || editions.find(e => e.isActive) || editions[0];
@@ -152,6 +160,7 @@ export async function GET(request: NextRequest) {
       type: doc.type,
       excerpt: doc.excerpt,
       fileUrl: doc.fileUrl,
+      thumbnailUrl: doc.thumbnailUrl,
       editionId: doc.editionId,
     }));
 
@@ -163,6 +172,15 @@ export async function GET(request: NextRequest) {
         links,
         documents,
         resources,
+        radioShows: radioShows.map(r => ({
+          id: r.id,
+          title: r.title,
+          url: r.url,
+          thumbnailUrl: r.thumbnailUrl,
+          author: r.author,
+          editionName: r.edition?.name ?? null,
+          performerName: r.performer?.name ?? null,
+        })),
         branding: resolveBranding(brandingRow?.value),
         conundrumText: conundrumDoc?.content || 'OMNIVOID is an autonomous sonic & visual research lab.',
         contactInfo: contactData,

@@ -1,6 +1,7 @@
 'use client';
 
 import BrandingManager from '@/components/admin/BrandingManager';
+import StorageCleanup from '@/components/admin/StorageCleanup';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -285,6 +286,8 @@ export default function DashboardPage() {
         </div>
 
         <BrandingManager />
+
+        <StorageCleanup />
       </div>
     </AdminLayout>
   );

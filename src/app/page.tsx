@@ -14,6 +14,8 @@ import { TintedImage } from '@/components/TintedImage';
 import { DEFAULT_LOGO_URL, LOGO_ASPECT, MENU_ICON_SLOTS, iconUrlFor, resolveBranding, type SiteBranding } from '@/lib/branding';
 import { RitualsWindow } from '@/components/edition/RitualsWindow';
 import { TransmissionsWindow } from '@/components/edition/TransmissionsWindow';
+import { RadioWindow, type PublicRadioShow } from '@/components/edition/RadioWindow';
+import { mixcloudEmbedSrc } from '@/lib/mixcloud';
 import type { PublicEdition } from '@/components/edition/types';
 
 interface ContentItem {
@@ -27,6 +29,8 @@ interface ContentItem {
   editionId?: string;
   content?: string;
   excerpt?: string;
+  thumbnailUrl?: string;
+  fileUrl?: string;
 }
 
 interface ContentStructure {
@@ -35,6 +39,7 @@ interface ContentStructure {
   links: ContentItem[];
   documents: ContentItem[];
   resources: any[];
+  radioShows?: PublicRadioShow[];
   branding?: SiteBranding;
   conundrumText?: string;
   contactInfo?: { contactEmail: string; submissionsEmail: string };
@@ -223,7 +228,9 @@ export default function Home() {
             <div class="space-y-4 font-mono">
               ${items.length === 0 ? '<p class="text-white/40">No research papers available in this iteration.</p>' : ''}
               ${items.map(doc => `
-                <div class="p-4 bg-white/5 border border-white/10 rounded-lg group hover:border-[#99ccff]/50 transition-all">
+                <div class="p-4 bg-white/5 border border-white/10 rounded-lg group hover:border-[#99ccff]/50 transition-all flex gap-4">
+                  ${doc.thumbnailUrl ? `<img src="${doc.thumbnailUrl}" alt="" class="w-20 h-28 object-cover rounded border border-white/10 shrink-0" />` : ''}
+                  <div class="flex-1 min-w-0">
                   <div class="flex items-center justify-between mb-2">
                     <h4 class="text-[#99ccff] font-bold text-xs">${doc.title}</h4>
                     <span class="text-[9px] px-2 py-0.5 rounded bg-white/10 text-white/60 font-bold">PDF DOCUMENT</span>
@@ -236,6 +243,7 @@ export default function Home() {
                     ` : `
                       <button class="text-[10px] px-3 py-1 bg-[#99ccff]/10 text-[#99ccff] border border-[#99ccff]/20 rounded">ACCESS DATA</button>
                     `}
+                  </div>
                   </div>
                 </div>
               `).join('')}
@@ -267,27 +275,6 @@ export default function Home() {
         `;
         return { content: html, tabs: [] };
 
-      case 'links':
-        items = content.links.filter(l => l.linkType === 'YOUTUBE' || l.category === section.categoryId);
-        html = `
-          <div class="space-y-3 font-mono">
-            ${items.length === 0 ? `<p class="text-white/40">No YouTube live transmissions found.</p>` : ''}
-            ${items.map(link => `
-              <div 
-                onclick="window.openYouTube('${link.path}')"
-                class="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded hover:bg-[#99ccff]/10 hover:border-[#99ccff]/40 transition-all cursor-pointer group"
-              >
-                <div class="flex items-center gap-3">
-                  <span class="text-lg opacity-60 group-hover:opacity-100">📺</span>
-                  <span class="text-xs font-mono font-bold tracking-tight text-white">${link.title}</span>
-                </div>
-                <span class="text-[10px] text-[#99ccff] font-bold">PLAY TRANSMISSION ▶</span>
-              </div>
-            `).join('')}
-          </div>
-        `;
-        return { content: html, tabs: [] };
-
       default:
         return { content: 'CONTENT_UNAVAILABLE', tabs: [] };
     }
@@ -308,6 +295,8 @@ export default function Home() {
         );
       case 'transmissions':
         return <TransmissionsWindow editions={content.editions} kinds={['SET', 'WORKSHOP', 'OTHER']} title="Transmissions" onPlayVideo={play} />;
+      case 'radio':
+        return <RadioWindow shows={content.radioShows || []} />;
       case 'labs':
         return <TransmissionsWindow editions={content.editions} kinds={['LABS']} title="Labs sessions" onPlayVideo={play} />;
       default:
@@ -559,7 +548,7 @@ export default function Home() {
                 <iframe 
                   width="100%" 
                   height="120" 
-                  src={`https://www.mixcloud.com/widget/iframe/?hide_cover=1&light=0&autoplay=1&feed=${encodeURIComponent(activeAudioUrl)}`} 
+                  src={mixcloudEmbedSrc(activeAudioUrl, true)} 
                   frameBorder="0"
                   allow="autoplay"
                 />

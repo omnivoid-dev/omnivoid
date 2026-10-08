@@ -9,6 +9,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { getYouTubeId, youtubeThumbnail } from '@/lib/youtube';
+import { deleteIfUnreferenced } from '@/lib/storage';
 
 export interface PerformerInput {
   key: string; // existing id or a client-side temp key
@@ -60,7 +61,11 @@ export async function saveEdition(id: string | null, body: any) {
   const performers: PerformerInput[] = (body.performers || []).filter((p: PerformerInput) => p.name?.trim());
   const transmissions: TransmissionInput[] = (body.transmissions || []).filter((t: TransmissionInput) => t.url?.trim());
 
-  return prisma.$transaction(async (tx) => {
+  const before = id
+    ? await prisma.edition.findUnique({ where: { id }, select: { posterUrl: true, workshopPosterUrl: true } })
+    : null;
+
+  const saved = await prisma.$transaction(async (tx) => {
     const edition = id
       ? await tx.edition.update({ where: { id }, data })
       : await tx.edition.create({ data });
@@ -114,4 +119,8 @@ export async function saveEdition(id: string | null, body: any) {
 
     return tx.edition.findUniqueOrThrow({ where: { id: edition.id }, include: editionInclude });
   });
+
+  // Replaced or removed posters are purged once nothing references them
+  await deleteIfUnreferenced([before?.posterUrl, before?.workshopPosterUrl]);
+  return saved;
 }

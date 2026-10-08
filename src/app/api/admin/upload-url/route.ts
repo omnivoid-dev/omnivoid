@@ -61,8 +61,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique storage path
-    const cleanFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const storagePath = `${Date.now()}_${cleanFilename}`;
+    // Keep a leading folder (so cleanup can find managed files); sanitise the rest
+    const ALLOWED_FOLDERS = ['audio', 'research', 'posters', 'thumbnails', 'branding'];
+    const [first, ...rest] = String(filename).split('/');
+    const folder = rest.length > 0 && ALLOWED_FOLDERS.includes(first) ? `${first}/` : '';
+    const cleanFilename = (folder ? rest.join('_') : String(filename)).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storagePath = `${folder}${Date.now()}_${cleanFilename}`;
 
     const { data, error } = await supabaseAdmin.storage
       .from(bucket)

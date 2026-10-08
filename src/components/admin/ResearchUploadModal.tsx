@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { MAX_PDF_BYTES, uploadToStorage } from '@/lib/uploadClient';
+import ImageUploadField from './ImageUploadField';
 
 interface ResearchUploadModalProps {
   editions: { label: string; value: string }[];
@@ -22,6 +23,7 @@ export default function ResearchUploadModal({ editions, initialData, onClose, on
   const [excerpt, setExcerpt] = useState(initialData?.excerpt || '');
   const [editionId, setEditionId] = useState(initialData?.editionId || '');
   const [sortOrder, setSortOrder] = useState<number>(initialData?.sortOrder || 0);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string>(initialData?.thumbnailUrl || '');
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,6 +66,7 @@ export default function ResearchUploadModal({ editions, initialData, onClose, on
         excerpt: excerpt || null,
         editionId: editionId || null,
         sortOrder,
+        thumbnailUrl: thumbnailUrl || null,
         ...(fileUrl ? { fileUrl, fileName } : {}),
       };
 
@@ -92,7 +95,7 @@ export default function ResearchUploadModal({ editions, initialData, onClose, on
         <div className="px-8 py-6 border-b border-white/10 bg-[#99ccff]/5 flex items-center justify-between">
           <div>
             <h3 className="text-xl font-bold text-[#99ccff] tracking-tight">📚 {isEdit ? 'EDIT' : 'UPLOAD'} RESEARCH PAPER</h3>
-            <p className="text-xs text-white/40 font-mono mt-0.5">PDF only · max 10MB</p>
+            <p className="text-xs text-white/40 font-mono mt-0.5">PDF only · max 10MB · thumbnail max 3MB</p>
           </div>
           <button type="button" onClick={onClose} className="text-white/40 hover:text-white">
             ✕
@@ -123,6 +126,14 @@ export default function ResearchUploadModal({ editions, initialData, onClose, on
               )}
             </div>
           </div>
+
+          <ImageUploadField
+            label="Thumbnail (optional)"
+            value={thumbnailUrl}
+            onChange={setThumbnailUrl}
+            kind="thumbnail"
+            hint="JPG, PNG or WebP up to 3MB. Converted to an optimised WebP."
+          />
 
           <div>
             <label className={labelCls}>Title *</label>

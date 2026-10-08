@@ -50,6 +50,7 @@ model Edition {
   performers     Performer[]
   transmissions  Transmission[]
   resources      Resource[]
+  radioShows     RadioShow[]
   links          Link[]
   documents      Document[]
 
@@ -75,6 +76,7 @@ model Performer {
 
   transmissions Transmission[]
   resources     Resource[]
+  radioShows    RadioShow[]
 
   @@index([editionId])
   @@index([name])
@@ -207,6 +209,30 @@ enum LinkType {
 }
 
 // ============================================
+// RADIO SHOWS - Mixcloud shows for the RADIO window (not tied to an edition)
+// ============================================
+model RadioShow {
+  id            String     @id @default(cuid())
+  title         String     // Display name shown on the site (editable)
+  originalTitle String?    // Title as it appears on Mixcloud
+  url           String     // Full Mixcloud show URL
+  thumbnailUrl  String?
+  author        String?    // Mixcloud account name
+  editionId     String?
+  edition       Edition?   @relation(fields: [editionId], references: [id], onDelete: SetNull)
+  performerId   String?
+  performer     Performer? @relation(fields: [performerId], references: [id], onDelete: SetNull)
+  isActive      Boolean    @default(true)
+  sortOrder     Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([editionId])
+  @@index([performerId])
+  @@index([isActive])
+}
+
+// ============================================
 // DOCUMENTS - Text content (replaces .txt files)
 // ============================================
 model Document {
@@ -227,6 +253,7 @@ model Document {
   // File attachment (for PDFs, etc.)
   fileUrl     String?  // URL to attached file
   fileName    String?
+  thumbnailUrl String? // Cover image (WebP, optimised on upload)
   
   // Display
   isFeatured  Boolean  @default(false)

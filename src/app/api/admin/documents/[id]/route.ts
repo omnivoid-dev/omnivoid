@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAdminToken } from '@/lib/auth';
+import { deleteIfUnreferenced } from '@/lib/storage';
 
 export async function GET(
   request: NextRequest,
@@ -34,10 +35,13 @@ export async function PUT(
     if (!authResult.success) return NextResponse.json({ success: false, error: authResult.error }, { status: 401 });
 
     const body = await request.json();
+    const before = await prisma.document.findUnique({ where: { id: params.id }, select: { fileUrl: true, thumbnailUrl: true } });
     const document = await prisma.document.update({
       where: { id: params.id },
       data: body,
     });
+    // Replaced or removed files are purged once nothing references them
+    await deleteIfUnreferenced([before?.fileUrl, before?.thumbnailUrl]);
 
     return NextResponse.json({ success: true, data: document, message: 'Document updated successfully' });
   } catch (error) {
@@ -53,7 +57,9 @@ export async function DELETE(
     const authResult = await verifyAdminToken(request);
     if (!authResult.success) return NextResponse.json({ success: false, error: authResult.error }, { status: 401 });
 
+    const before = await prisma.document.findUnique({ where: { id: params.id }, select: { fileUrl: true, thumbnailUrl: true } });
     await prisma.document.delete({ where: { id: params.id } });
+    await deleteIfUnreferenced([before?.fileUrl, before?.thumbnailUrl]);
     return NextResponse.json({ success: true, message: 'Document deleted successfully' });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to delete document' }, { status: 500 });

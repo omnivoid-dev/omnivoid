@@ -1,4 +1,4 @@
-# OMNIVOID Project Status Report - October 8, 2026
+# OMNIVOID Project Status Report - October 9, 2026
 
 ## 🎯 Completed Objectives
 
@@ -24,7 +24,19 @@
 - **Plexus** (`AgentSystem.ts`) is the original project's agent network, ported to TypeScript. A missing `--fg-color` had left it invisible; it now falls back to `#99ccff`.
 - **Starfield** (`ThreeCanvas.tsx`): the rotating sphere and rings were removed. 900 particles at half the previous speed, behind a footer toggle that starts **off**. Audio reactivity is disconnected for now.
 
-### 5. Foundation (earlier work)
+### 5. Radio (Mixcloud)
+- **`RadioShow` table** (display name, original Mixcloud title, cover art, author, optional edition and performer, order, visibility) with `/admin/radio`.
+- **Fetch details**: pasting a Mixcloud URL pulls title, author and cover art via Mixcloud oEmbed (`/api/admin/mixcloud-meta`). The display name stays editable.
+- **RADIO window** (`RadioWindow.tsx`): React window with an embedded Mixcloud player, previous/next, search, and cover-art cards. The old popup's incorrect feed path was fixed through the shared `src/lib/mixcloud.ts`.
+- `scripts/seed-radio.ts` imports the 8 legacy shows from `mixcloudPlaylists.js`.
+
+### 6. Research Thumbnails, Image Optimisation and Storage Cleanup
+- **Thumbnails**: optional image per research paper (3MB limit, enforced server-side), shown on the paper cards.
+- **Serverless WebP optimiser** (`/api/admin/images`, `sharp`): validates the real file format, auto-rotates, resizes (thumbnails 800px, posters 1600px) and converts to WebP. Edition posters use it too (4MB limit, under Vercel's 4.5MB cap).
+- **Save-and-purge** (`src/lib/storage.ts`): replaced or deleted papers, posters, tracks and branding images remove their old files unless something still references them. A Dashboard **Storage cleanup** panel finds uploads that were never saved (older than 24h) and purges them on request.
+- Uploads now keep their folder (`research/`, `audio/`, `posters/`, `thumbnails/`, `branding/`).
+
+### 7. Foundation (earlier work)
 - Supabase Postgres + Supabase Auth with route protection via `middleware.ts`.
 - Web Audio analyzer hook, audio player window, and Agent dialogue overlay.
 - Direct browser-to-Supabase signed-URL uploads (`/api/admin/upload-url`, with per-type size limits).
@@ -32,17 +44,19 @@
 ---
 
 ## ⚠️ Known Gaps
-- **Radio has no admin.** The old `/admin/links` page was removed; the RADIO window still reads legacy `Link` rows.
-- Deleting a paper or track removes the database row but not the file in Supabase Storage.
-- The 10MB PDF limit relies on the size the browser declares; it is not enforced by the storage bucket.
+- **Database not yet updated.** `npx prisma db push` is still required for `Transmission`, `Performer`, `RadioShow` and the new `Document.thumbnailUrl`, `Resource.performerId` and `Transmission.originalTitle` columns. Then run `scripts/migrate-links-to-transmissions.ts` and `scripts/seed-radio.ts`.
 - The legacy YouTube `Link` rows remain in the database after migration, pending cleanup once the new site is verified.
-- Performers are per edition, so the same artist on two editions is two rows (search by name finds both).
+- Performers are per edition, so the same artist on two editions is two rows (search by name finds both). A public Performers page will need a shared artist record.
+- Files uploaded before this release sit in the storage bucket root and are not covered by automatic cleanup; legacy `docs/` and `gallery/` are never purged.
+- The 10MB PDF limit relies on the size the browser declares (images are enforced server-side). Storage cleanup is manual, not scheduled.
+- Menu link names are still fixed in code.
 - Edition theme switching is not wired up yet (data field exists).
-- Starfield audio reactivity is disconnected.
+- Starfield audio reactivity is disconnected, and the plexus does not react to audio.
 
 ## 📈 System Summary
-* **Database**: Supabase Postgres via Prisma (Edition, Performer, Transmission, Resource, Link, Document, SiteSettings)
+* **Database**: Supabase Postgres via Prisma (Edition, Performer, Transmission, RadioShow, Resource, Link, Document, SiteSettings)
 * **Auth**: Supabase Auth (`@supabase/ssr`)
-* **Storage**: Supabase Storage (`media` bucket: `audio/`, `research/`, `posters/`, `branding/`)
+* **Storage**: Supabase Storage (`media` bucket: `audio/`, `research/`, `posters/`, `thumbnails/`, `branding/`)
 * **Visuals**: 2D plexus agents (always on), Three.js starfield (toggle, off by default)
-* **Deploy steps for this release**: `npx prisma db push`, `npx prisma generate`, then `npx tsx --env-file=.env scripts/migrate-links-to-transmissions.ts`
+* **Image pipeline**: `sharp` serverless WebP conversion with server-side size limits
+* **Deploy steps**: `npx prisma db push`, `npx prisma generate`, then `npx tsx --env-file=.env scripts/migrate-links-to-transmissions.ts` and `npx tsx --env-file=.env scripts/seed-radio.ts`

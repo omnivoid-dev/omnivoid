@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAdminToken } from '@/lib/auth';
 import { saveEdition, editionInclude } from '@/lib/editions';
+import { deleteIfUnreferenced } from '@/lib/storage';
 
 export async function GET(
   request: NextRequest,
@@ -53,7 +54,9 @@ export async function DELETE(
     const authResult = await verifyAdminToken(request);
     if (!authResult.success) return NextResponse.json({ success: false, error: authResult.error }, { status: 401 });
 
+    const before = await prisma.edition.findUnique({ where: { id: params.id }, select: { posterUrl: true, workshopPosterUrl: true } });
     await prisma.edition.delete({ where: { id: params.id } });
+    await deleteIfUnreferenced([before?.posterUrl, before?.workshopPosterUrl]);
     return NextResponse.json({ success: true, message: 'Edition deleted successfully' });
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to delete edition' }, { status: 500 });

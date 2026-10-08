@@ -1,26 +1,29 @@
 'use client';
 
 import { useState } from 'react';
-import { uploadToStorage } from '@/lib/uploadClient';
+import { uploadImage } from '@/lib/uploadClient';
 
 interface ImageUploadFieldProps {
   label: string;
   value: string;
   onChange: (url: string) => void;
-  folder?: string;
+  kind?: 'thumbnail' | 'poster';
+  hint?: string;
 }
 
 /** Poster slot: uploads straight to Supabase Storage via a signed URL, or accepts a pasted URL. */
-export default function ImageUploadField({ label, value, onChange, folder = 'posters' }: ImageUploadFieldProps) {
+export default function ImageUploadField({ label, value, onChange, kind = 'poster', hint }: ImageUploadFieldProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ before: number; after: number } | null>(null);
 
   const handleFile = async (file: File) => {
     setIsUploading(true);
     setError(null);
     try {
-      const { publicUrl } = await uploadToStorage(file, folder);
-      onChange(publicUrl);
+      const result = await uploadImage(file, kind);
+      setStats({ before: result.originalBytes, after: result.bytes });
+      onChange(result.publicUrl);
     } catch (err: any) {
       setError(err.message || 'Upload failed');
     } finally {
@@ -48,7 +51,7 @@ export default function ImageUploadField({ label, value, onChange, folder = 'pos
               {isUploading ? 'UPLOADING...' : '⬆ UPLOAD IMAGE'}
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
                 className="hidden"
                 disabled={isUploading}
                 onChange={(e) => {
@@ -59,11 +62,17 @@ export default function ImageUploadField({ label, value, onChange, folder = 'pos
               />
             </label>
             {value && (
-              <button type="button" onClick={() => onChange('')} className="text-[10px] text-red-400 hover:text-red-300">
+              <button type="button" onClick={() => { onChange(''); setStats(null); }} className="text-[10px] text-red-400 hover:text-red-300">
                 REMOVE
               </button>
             )}
           </div>
+          {stats && (
+            <p className="text-[10px] text-emerald-400">
+              Optimised to WebP: {(stats.before / 1024).toFixed(0)}KB → {(stats.after / 1024).toFixed(0)}KB. Save to keep it; unsaved uploads are purged.
+            </p>
+          )}
+          {hint && !stats && <p className="text-[10px] text-white/30">{hint}</p>}
           {error && <p className="text-[10px] text-red-400">{error}</p>}
         </div>
       </div>

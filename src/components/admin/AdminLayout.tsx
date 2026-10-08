@@ -35,6 +35,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { label: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
     { label: 'Editions & Rituals', href: '/admin/editions', icon: '🏛️' },
     { label: 'Transmissions (YouTube)', href: '/admin/transmissions', icon: '📡' },
+    { label: 'Radio (Mixcloud)', href: '/admin/radio', icon: '📻' },
     { label: 'Research Papers', href: '/admin/research', icon: '📚' },
     { label: 'Audio Player', href: '/admin/audio', icon: '🎧' },
     { label: 'Media Library', href: '/admin/media', icon: '🖼️' },

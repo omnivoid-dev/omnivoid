@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
       excerpt,
       fileUrl,
       fileName,
+      thumbnailUrl,
       isFeatured,
       sortOrder,
     } = body;
@@ -120,6 +121,7 @@ export async function POST(request: NextRequest) {
         excerpt: excerpt || null,
         fileUrl: fileUrl || null,
         fileName: fileName || null,
+        thumbnailUrl: thumbnailUrl || null,
         isFeatured: isFeatured || false,
         sortOrder: sortOrder || 0,
       },
