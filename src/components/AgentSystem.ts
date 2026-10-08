@@ -399,6 +399,11 @@ export class AgentSystem extends Component {
     this.themeTarget = { ink: hexToRgb(palette.ink), accent: hexToRgb(palette.accent) };
   }
 
+  /** Smoothed 0..1 beat energy, for the post-effect layer. */
+  getPulse(): number {
+    return this.pulse;
+  }
+
   /** Ease the current theme colours towards the target (called every frame). */
   private stepTheme(): void {
     let moving = false;

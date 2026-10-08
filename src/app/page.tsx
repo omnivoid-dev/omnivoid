@@ -20,6 +20,8 @@ import { RadioWindow, type PublicRadioShow } from '@/components/edition/RadioWin
 import { mixcloudEmbedSrc } from '@/lib/mixcloud';
 import type { PublicEdition, PublicProfile } from '@/components/edition/types';
 import { NEUTRAL_THEME, resolveTheme } from '@/lib/themes';
+import { BackgroundFX } from '@/components/fx/BackgroundFX';
+import { fxForPreset } from '@/lib/fx/presets';
 
 interface ContentItem {
   id: string;
@@ -105,6 +107,9 @@ export default function Home() {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
   const [showStarfield, setShowStarfield] = useState(false);
+  // Post-effect layer (dither etc.): user toggle, and whether it is actually drawing
+  const [fxEnabled, setFxEnabled] = useState(true);
+  const [fxActive, setFxActive] = useState(false);
 
   const { connectAudioElement, getAudioData } = useAudioAnalyzer();
 
@@ -305,6 +310,7 @@ export default function Home() {
   const themeEdition = content?.editions.find((e) => e.id === themeEditionId);
   const activeTheme = resolveTheme(themeEdition?.themeColors);
   const palette = activeTheme?.palette ?? NEUTRAL_THEME;
+  const fxEffect = fxEnabled ? fxForPreset(activeTheme?.id) : null;
 
   return (
     <main
@@ -315,7 +321,19 @@ export default function Home() {
       {showStarfield && <ThreeCanvas />}
 
       {/* 2D Agent Canvas Overlay (plexus) */}
-      <canvas id="agents" className="fixed inset-0 z-0 opacity-60 pointer-events-none" />
+      <canvas
+        id="agents"
+        className="fixed inset-0 z-0 pointer-events-none"
+        style={{ opacity: fxActive ? 0 : 0.6, transition: 'opacity 800ms ease' }}
+      />
+
+      {/* Post-effect layer: the plexus re-drawn through the edition's shader */}
+      <BackgroundFX
+        effect={fxEffect}
+        palette={{ bg: palette.bg, ink: palette.ink, accent: palette.accent }}
+        getPulse={() => agentSystemRef.current?.getPulse() ?? 0}
+        onActiveChange={setFxActive}
+      />
       
       {/* Agent Dialogue HUD Overlay */}
       <AgentOverlay
@@ -397,6 +415,17 @@ export default function Home() {
             }`}
           >
             <span>✦</span> STARFIELD {showStarfield ? 'ON' : 'OFF'}
+          </button>
+          <button
+            onClick={() => setFxEnabled((v) => !v)}
+            title="Edition post-effects (dither, ...)"
+            className={`flex items-center gap-2 text-[10px] font-mono tracking-widest px-3 py-1 rounded transition-all border ${
+              fxEnabled
+                ? 'bg-[#99ccff]/20 text-[#99ccff] border-[#99ccff]/40'
+                : 'bg-white/5 text-white/60 border-white/10 hover:border-[#99ccff]/30 hover:text-white'
+            }`}
+          >
+            <span>▚</span> FX {fxEnabled ? 'ON' : 'OFF'}
           </button>
           {themeEdition && activeTheme && (
             <button
