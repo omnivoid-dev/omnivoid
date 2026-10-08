@@ -1,4 +1,16 @@
-# OMNIVOID Project Status Report - October 9, 2026 (updated)
+# OMNIVOID Project Status Report - October 9, 2026 (end of day)
+
+## 🏁 Where Things Stand
+- **Repository:** everything is committed and pushed to `omnivoid-dev/omnivoid` (`master`). Type check clean at the last commit (`59d3dc8`).
+- **Database:** schema applied; editions 001-010 and the special exist with dates, venues, posters, workshops and theme presets; 25 videos and 8 radio shows are attached to their editions. Performer lineups (stage B) are prepared but **not applied**.
+- **Not yet seen running:** the shared window, the text decode, and all ten GLSL post-effects were written and type-checked but have not been reviewed on screen or on mobile hardware. First job tomorrow is a visual pass (`?fxdebug=1` for tuning, or the Theme tab previews).
+
+### Open items for tomorrow
+1. **Visual review** of the window, the decode timing and each post-effect; dial in tuning and the placeholder palettes for Editions 008 and 010.
+2. **Performer lineups:** confirm the Edition 008 names ("Jhanu - Nila" may be two names), whether MYLES is a separate performer from Philtersoup, and the VJ Zombie / NoLatency split; then run `scripts/populate-editions.ts --performers --write`.
+3. **Dates** for Editions 008 and 009 (blank for now).
+4. **Edition 010** (Latest Ritual, 15 Nov 2026): add the ticket link, poster and lineup when ready.
+5. Later: starfield audio reactivity, retiring the legacy YouTube `Link` rows, scheduling the storage cleanup, and a mobile performance pass.
 
 ## 🎯 Completed Objectives
 
