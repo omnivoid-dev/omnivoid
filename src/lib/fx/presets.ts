@@ -4,7 +4,7 @@
  * the first parameter of every effect is `cell`, the render cell size in CSS pixels.
  */
 
-export type FxEffect = 'dither' | 'riso' | 'glitch' | 'ascii' | 'oscilloscope' | 'marquee' | 'goo';
+export type FxEffect = 'dither' | 'riso' | 'glitch' | 'ascii' | 'oscilloscope' | 'marquee' | 'goo' | 'cyanotype' | 'mandelbrot';
 
 export interface ParamSpec {
   key: string;
@@ -40,6 +40,28 @@ export const FX_SPECS: Record<FxEffect, EffectSpec> = {
       { key: 'grain', label: 'ink dropout', min: 0, max: 1, step: 0.05, default: 0.35 },
       { key: 'field', label: 'field', min: 0, max: 1.5, step: 0.05, default: 0.7 },
       { key: 'contrast', label: 'contrast', min: 0.5, max: 3, step: 0.05, default: 1.4 },
+      { key: 'pulseGain', label: 'beat', min: 0, max: 2, step: 0.05, default: 1 },
+    ],
+  },
+  cyanotype: {
+    label: 'Cyanotype',
+    params: [
+      { key: 'cell', label: 'cell px', min: 1, max: 4, step: 1, default: 2 },
+      { key: 'decay', label: 'fade (slow)', min: 0.9, max: 0.995, step: 0.001, default: 0.975 },
+      { key: 'expo', label: 'exposure', min: 0.3, max: 3, step: 0.05, default: 1 },
+      { key: 'grain', label: 'paper grain', min: 0, max: 1, step: 0.05, default: 0.5 },
+      { key: 'border', label: 'brushed edge', min: 0, max: 1, step: 0.05, default: 0.5 },
+      { key: 'pulseGain', label: 'beat', min: 0, max: 2, step: 0.05, default: 1 },
+    ],
+  },
+  mandelbrot: {
+    label: 'Mandelbrot',
+    params: [
+      { key: 'cell', label: 'cell px', min: 1, max: 4, step: 1, default: 2 },
+      { key: 'speed', label: 'zoom speed', min: 0, max: 2, step: 0.05, default: 0.6 },
+      { key: 'iters', label: 'iterations', min: 30, max: 200, step: 5, default: 100 },
+      { key: 'palette', label: 'colour bands', min: 0.5, max: 3, step: 0.05, default: 1.2 },
+      { key: 'overlay', label: 'plexus overlay', min: 0, max: 1.5, step: 0.05, default: 0.8 },
       { key: 'pulseGain', label: 'beat', min: 0, max: 2, step: 0.05, default: 1 },
     ],
   },
@@ -120,6 +142,8 @@ const FX_BY_PRESET: Record<string, FxEffect> = {
   'oscilloscope-red': 'oscilloscope',
   vanity: 'marquee',
   'ai-goo-red-metallic': 'goo',
+  'cyanotype-blue': 'cyanotype',
+  mandelbrot: 'mandelbrot',
   'glitch-print': 'glitch',
 };
 

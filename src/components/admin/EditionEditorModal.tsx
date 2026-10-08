@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import ImageUploadField from './ImageUploadField';
 import { NEUTRAL_THEME, THEME_PRESETS, isHex, presetById, resolveTheme, type ThemePalette } from '@/lib/themes';
+import { EffectPreview } from '@/components/fx/EffectPreview';
+import { FX_SPECS, defaultsFor, fxForPreset } from '@/lib/fx/presets';
 
 interface PerformerEntry {
   key: string; // existing id or temp key; transmissions reference performers by this
@@ -77,8 +79,11 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
   const [themePreset, setThemePreset] = useState<string>(initialData?.themeColors?.preset || '');
   const [palette, setPalette] = useState<ThemePalette>(initialTheme?.palette || NEUTRAL_THEME);
 
+  const [themeParams, setThemeParams] = useState<Record<string, number>>(initialTheme?.params || {});
+
   const choosePreset = (id: string) => {
     setThemePreset(id);
+    setThemeParams({});
     const preset = presetById(id);
     if (preset) setPalette(preset.palette);
     else setPalette(NEUTRAL_THEME);
@@ -131,6 +136,10 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
     }
   };
 
+  // The effect this preset uses (if any) and its values: defaults overridden by what is tuned for this edition
+  const fxEffect = fxForPreset(themePreset);
+  const fxParams = fxEffect ? { ...defaultsFor(fxEffect), ...themeParams } : {};
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -163,7 +172,7 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
           workshopPosterUrl,
           workshopTicketUrl,
           themeColors: themePreset || palette.bg !== NEUTRAL_THEME.bg || palette.ink !== NEUTRAL_THEME.ink || palette.accent !== NEUTRAL_THEME.accent
-            ? { preset: themePreset || undefined, palette }
+            ? { preset: themePreset || undefined, palette, params: themeParams }
             : null,
           performers,
           transmissions: transmissions.map((t) => ({ ...t, performerKey: t.performerKey || null })),
@@ -399,7 +408,46 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
                 </button>
               </div>
 
-              {/* Live preview */}
+              {fxEffect ? (
+                <div className="space-y-4">
+                  <div className="text-[10px] font-bold text-[#99ccff] tracking-widest">
+                    {FX_SPECS[fxEffect].label.toUpperCase()} EFFECT (live preview)
+                  </div>
+                  <EffectPreview effect={fxEffect} palette={palette} params={fxParams} />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                    {FX_SPECS[fxEffect].params.map((spec) => (
+                      <label key={spec.key} className="flex items-center gap-2 text-[10px] text-white/70">
+                        <span className="w-24 shrink-0">{spec.label}</span>
+                        <input
+                          type="range"
+                          min={spec.min}
+                          max={spec.max}
+                          step={spec.step}
+                          value={fxParams[spec.key]}
+                          onChange={(e) => setThemeParams({ ...themeParams, [spec.key]: Number(e.target.value) })}
+                          className="flex-1 min-w-0"
+                        />
+                        <span className="w-10 text-right">{fxParams[spec.key]}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setThemeParams({})}
+                      className="text-[10px] font-bold px-3 py-1.5 rounded border border-white/15 text-white/60 hover:text-white"
+                    >
+                      RESET EFFECT VALUES
+                    </button>
+                    <span className="text-[10px] text-white/30">Saved with the edition.</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[10px] text-white/40">
+                    {themePreset ? 'No post-effect for this preset yet: the site shows the plain plexus in these colours.' : 'Choose a preset to see its effect.'}
+                  </p>
               <div className="rounded-lg border border-white/10 overflow-hidden" style={{ background: palette.bg }}>
                 <svg viewBox="0 0 320 110" className="w-full h-28">
                   {[
@@ -425,6 +473,8 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
                   <circle cx="160" cy="55" r="3" fill={palette.accent} />
                 </svg>
               </div>
+                </div>
+              )}
             </div>
           )}
 

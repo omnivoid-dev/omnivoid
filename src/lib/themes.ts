@@ -14,9 +14,13 @@ export interface ThemePalette {
   accent: string;
 }
 
+import { FX_SPECS } from './fx/presets';
+
 export interface StoredTheme {
   preset?: string;
   palette?: Partial<ThemePalette>;
+  /** Tuned post-effect parameters for this edition (see FX_SPECS for the keys). */
+  params?: Record<string, number>;
 }
 
 export interface ThemePreset {
@@ -48,7 +52,7 @@ const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
 export const isHex = (v: unknown): v is string => typeof v === 'string' && HEX.test(v);
 
 /** Stored theme (possibly partial or missing) merged over its preset; null means "use the neutral look". */
-export function resolveTheme(stored: unknown): { id: string | null; label: string; palette: ThemePalette } | null {
+export function resolveTheme(stored: unknown): { id: string | null; label: string; palette: ThemePalette; params: Record<string, number> } | null {
   if (!stored || typeof stored !== 'object') return null;
   const s = stored as StoredTheme;
   const preset = presetById(s.preset);
@@ -60,7 +64,30 @@ export function resolveTheme(stored: unknown): { id: string | null; label: strin
     ink: isHex(s.palette?.ink) ? s.palette!.ink! : base.ink,
     accent: isHex(s.palette?.accent) ? s.palette!.accent! : base.accent,
   };
-  return { id: preset?.id ?? null, label: preset?.label ?? 'Custom', palette };
+  return { id: preset?.id ?? null, label: preset?.label ?? 'Custom', palette, params: sanitizeParams(s.params) ?? {} };
+}
+
+/** Known parameter keys with the widest range any effect allows for them. */
+const PARAM_RANGES = (() => {
+  const ranges = new Map<string, { min: number; max: number }>();
+  for (const spec of Object.values(FX_SPECS)) {
+    for (const p of spec.params) {
+      const r = ranges.get(p.key);
+      ranges.set(p.key, { min: Math.min(r?.min ?? p.min, p.min), max: Math.max(r?.max ?? p.max, p.max) });
+    }
+  }
+  return ranges;
+})();
+
+/** Keep finite numbers for known keys, clamped to their range. Undefined when there is nothing valid. */
+export function sanitizeParams(input: unknown): Record<string, number> | undefined {
+  if (!input || typeof input !== 'object') return undefined;
+  const out: Record<string, number> = {};
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    const range = PARAM_RANGES.get(key);
+    if (range && typeof value === 'number' && Number.isFinite(value)) out[key] = Math.min(range.max, Math.max(range.min, value));
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** Keep only known, valid fields before saving (server side). */
@@ -74,7 +101,8 @@ export function sanitizeStoredTheme(input: unknown, previous?: unknown): StoredT
     ink: isHex(s.palette?.ink) ? s.palette!.ink : undefined,
     accent: isHex(s.palette?.accent) ? s.palette!.accent : undefined,
   };
-  return out.preset || out.palette.bg || out.palette.ink || out.palette.accent ? out : null;
+  if (s.params !== undefined) out.params = sanitizeParams(s.params);
+  return out.preset || out.palette.bg || out.palette.ink || out.palette.accent || out.params ? out : null;
 }
 
 export function hexToRgb(hex: string): [number, number, number] {

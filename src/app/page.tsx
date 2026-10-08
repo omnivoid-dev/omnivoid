@@ -226,6 +226,24 @@ export default function Home() {
     setThemeEditionId(editionId);
   };
 
+  // Save tuned effect parameters to the active edition (needs an admin session)
+  const saveThemeParams = async (params: Record<string, number>) => {
+    if (!themeEditionId) return 'No edition theme is active.';
+    const res = await fetch(`/api/admin/editions/${themeEditionId}/theme`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ params }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401) return 'Sign in to /admin first, then save again.';
+    if (!res.ok || !data.success) return data.error || 'Could not save.';
+    // Keep the loaded content in step so re-selecting the edition keeps the tuned values
+    setContent((c) =>
+      c ? { ...c, editions: c.editions.map((e) => (e.id === themeEditionId ? { ...e, themeColors: data.data } : e)) } : c
+    );
+    return 'Saved to this edition.';
+  };
+
   const openEdition = (editionId: string) => {
     selectEdition(editionId);
     openSection('rituals');
@@ -331,6 +349,9 @@ export default function Home() {
       <BackgroundFX
         effect={fxEffect}
         palette={{ bg: palette.bg, ink: palette.ink, accent: palette.accent }}
+        storedParams={activeTheme?.params}
+        editionName={themeEdition?.name}
+        onSaveParams={themeEditionId ? saveThemeParams : undefined}
         getPulse={() => agentSystemRef.current?.getPulse() ?? 0}
         getWave={() => (isPlayingAudio ? getAudioData().timeDomainData : null)}
         onActiveChange={setFxActive}

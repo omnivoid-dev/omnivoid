@@ -659,7 +659,140 @@ void main() {
 }
 `;
 
-export const FRAGMENT_SHADERS: Record<FxEffect | 'ascii-luma' | 'oscilloscope-trail' | 'marquee-luma' | 'goo-field', string> = {
+/**
+ * Cyanotype, pass 1: UV exposure that accumulates. Agents and a "UV lamp" under the cursor slowly expose the
+ * paper (brightening it); the exposure fades back very slowly, so movement leaves soft photogram ghosts.
+ * uP0 = (cell, fade, exposure, paper grain), uP1 = (brushed edge, beat gain).
+ */
+const CYANO_TRAIL = `
+uniform sampler2D uPrev;
+uniform float uDecay;
+
+void main() {
+  float expo = uP0.z;
+  float pulseGain = uP1.y;
+  vec2 uv = vUv;
+  vec2 px = 1.0 / uRes;
+  float aspect = uRes.x / uRes.y;
+
+  // Exposure diffuses a little as it accumulates
+  float prev = texture2D(uPrev, uv).r * 0.6
+    + (texture2D(uPrev, uv + vec2(px.x, 0.0)).r + texture2D(uPrev, uv - vec2(px.x, 0.0)).r
+     + texture2D(uPrev, uv + vec2(0.0, px.y)).r + texture2D(uPrev, uv - vec2(0.0, px.y)).r) * 0.1;
+  prev = max(prev * uDecay - 0.004, 0.0);
+
+  float beam = presence(uv);
+  float lamp = 0.0;
+  if (uMouseActive > 0.5) lamp = smoothstep(0.10, 0.0, length((uv - uMouse) * vec2(aspect, 1.0)));
+
+  float add = (beam * 0.035 + lamp * 0.03) * expo * (1.0 + uPulse * pulseGain * 0.8);
+  gl_FragColor = vec4(clamp(prev + add, 0.0, 1.0), 0.0, 0.0, 1.0);
+}
+`;
+
+/**
+ * Cyanotype, pass 2: Prussian-blue paper that turns pale where it has been exposed, with paper fibre, grain,
+ * dust, and a rough brushed coating edge outside of which the bare paper shows.
+ */
+const CYANO_DISPLAY = `
+uniform sampler2D uPrev;
+
+void main() {
+  float grain = uP0.w;
+  float border = uP1.x;
+  float pulseGain = uP1.y;
+
+  vec2 uv = vUv;
+  float aspect = uRes.x / uRes.y;
+  vec2 p = vec2(uv.x * aspect, uv.y);
+  vec2 fc = gl_FragCoord.xy;
+
+  float E = texture2D(uPrev, uv).r;
+  E = clamp(E + uKick * 0.35 + uPulse * pulseGain * 0.12, 0.0, 1.0);
+
+  float mottle = fbm(p * 3.0 + 5.0);
+  float fibre = noise(vec2(p.x * 60.0, p.y * 7.0));
+  vec3 deep = uBg * (0.85 + 0.3 * mottle);
+  vec3 mid = mix(deep, uAccent, 0.45);
+  float x = smoothstep(0.05, 0.9, E);
+  vec3 img = mix(deep, mid, smoothstep(0.0, 0.5, E));
+  img = mix(img, uInk, x * x);
+  img *= 1.0 + (hash(fc) - 0.5) * 0.10 * grain + (fibre - 0.5) * 0.10 * grain;
+  img = mix(img, uInk, step(0.9994, hash(floor(fc * 0.5) + 3.0)) * 0.9);   // dust
+
+  float bd = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+  float rough = fbm(p * 10.0) * 0.02 + noise(p * 60.0) * 0.006;
+  float coated = smoothstep(0.010 + rough, 0.026 + rough, bd);
+  coated = mix(1.0, coated, border);
+  vec3 paper = vec3(0.93, 0.91, 0.85) * (0.94 + 0.06 * noise(p * 90.0));
+
+  vec3 col = mix(paper, img, coated);
+  col *= mix(0.8, 1.0, smoothstep(1.3, 0.3, length((uv - 0.5) * vec2(aspect, 1.0))));
+  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}
+`;
+
+/**
+ * Mandelbrot: an endless smooth zoom into the seahorse valley and back out. Escape-time shading with smooth
+ * iteration counts, coloured between the theme's ink and accent, dark inside the set. The plexus is overlaid so
+ * the agents float over the fractal; the cursor adds a soft glow; the beat shifts the colour phase.
+ * uP0 = (cell, zoom speed, iterations, colour bands), uP1 = (plexus overlay, beat gain).
+ */
+const MANDELBROT = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+#define ZOOM_MAX 2500.0
+#else
+#define ZOOM_MAX 40.0
+#endif
+
+void main() {
+  float speed = uP0.y;
+  float iters = uP0.z;
+  float palScale = uP0.w;
+  float overlay = uP1.x;
+  float pulseGain = uP1.y;
+
+  vec2 uv = vUv;
+  float aspect = uRes.x / uRes.y;
+  float t = uTime * speed;
+
+  float zoom = exp(log(ZOOM_MAX) * (0.5 - 0.5 * cos(t * 0.12)));
+  float depth = log(zoom) / log(ZOOM_MAX);
+  vec2 centre = mix(vec2(-0.743643887037151, 0.131825904205330), vec2(-0.6, 0.0), pow(1.0 - clamp(depth * 2.0, 0.0, 1.0), 2.0));
+  vec2 c = centre + (uv - 0.5) * vec2(aspect, 1.0) * 3.0 / zoom;
+
+  vec2 z = vec2(0.0);
+  float n = 0.0;
+  float escaped = 0.0;
+  for (int i = 0; i < 200; i++) {
+    if (float(i) >= iters) break;
+    z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
+    if (dot(z, z) > 256.0) { escaped = 1.0; break; }
+    n += 1.0;
+  }
+  float sm = n;
+  if (escaped > 0.5) sm = n - log2(log2(dot(z, z))) + 4.0;
+
+  float phase = uTime * 0.15 * speed + uPulse * pulseGain * 1.2 + uKick * 2.0;
+  float v = escaped > 0.5 ? 1.0 - exp(-sm * 0.08 * palScale) : 0.0;
+  float k = 0.5 + 0.5 * sin(sm * 0.18 * palScale + phase);
+  vec3 c1 = mix(uInk, uAccent, k);
+  vec3 col = mix(uBg, c1, pow(v, 1.4));
+
+  float pres = presence(uv);
+  col += (uAccent * 0.6 + uInk * 0.25) * pres * overlay;
+  col += uAccent * cursorGlow(uv, aspect) * 0.15;
+
+  col *= mix(0.75, 1.0, smoothstep(1.3, 0.3, length((uv - 0.5) * vec2(aspect, 1.0))));
+  col += (hash(gl_FragCoord.xy + uTime) - 0.5) * 0.02;
+  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}
+`;
+
+export const FRAGMENT_SHADERS: Record<FxEffect | 'ascii-luma' | 'oscilloscope-trail' | 'marquee-luma' | 'goo-field' | 'cyanotype-trail', string> = {
+  cyanotype: COMMON + CYANO_DISPLAY,
+  'cyanotype-trail': COMMON + CYANO_TRAIL,
+  mandelbrot: COMMON + MANDELBROT,
   goo: COMMON + GOO_DISPLAY,
   'goo-field': COMMON + GOO_FIELD,
   marquee: COMMON + MARQUEE_DISPLAY,

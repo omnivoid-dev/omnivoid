@@ -1,4 +1,4 @@
-# OMNIVOID Project Status Report - October 9, 2026
+# OMNIVOID Project Status Report - October 9, 2026 (updated)
 
 ## 🎯 Completed Objectives
 
@@ -42,7 +42,19 @@
 - **Menu names**: editable per menu entry from the Dashboard branding panel (`siteBranding.labels`); three new slots for the new sections.
 - `/api/content` exposes `profiles` and `branding.labels`. The public windows and applying the menu names are deferred until the remaining back-end work is done.
 
-### 8. Foundation (earlier work)
+### 8. Single Shared Window
+- One `WindowShell` replaces the per-section windows: navigation strip, drag / resize / maximize, remembered layout, `Esc` and 1-9 keys, full-screen on mobile, no backdrop. Sections are a registry; Research, Conundrum, Contact and Gallery are now React (no more HTML strings). Performers, Collaborators and Affiliates are master-detail sections inside it. `?section=` deep links.
+- **Text decode transition** (`src/lib/decode.ts`): text re-encodes through random glyphs and settles unevenly, on open, section switch, edition change and filters. Respects reduced motion.
+
+### 9. Edition Data and Themes
+- `scripts/populate-editions.ts` built the editions from the poster archive (dates, venues, posters, workshops, theme presets), assigned the 25 videos and 8 radio shows. Stage B (lineups and performer profiles) is prepared and waiting for review.
+- **Themes:** each edition has a preset, three-colour palette and tuned effect values (Theme tab). Selecting an edition crossfades the agents and the page background; the site opens neutral; windows stay constant.
+
+### 10. GLSL Post-Effects (one per edition)
+- A WebGL layer (`BackgroundFX` over the reusable `FxRenderer`) re-draws the plexus through the edition's shader: dither (001, 007), riso (002), ASCII (003), oscilloscope with audio trace (004), liquid-metal goo (005), glitch (008), cyanotype (009), Mandelbrot (010), and a Broadway marquee for the Vanity special. Multi-pass and feedback buffers supported; footer FX toggle; falls back without WebGL or with reduced motion.
+- **Tuning:** live preview and sliders in the admin Theme tab, or `?fxdebug=1` on the site, with values saved per edition.
+
+### 11. Foundation (earlier work)
 - Supabase Postgres + Supabase Auth with route protection via `middleware.ts`.
 - Web Audio analyzer hook, audio player window, and Agent dialogue overlay.
 - Direct browser-to-Supabase signed-URL uploads (`/api/admin/upload-url`, with per-type size limits).
@@ -55,9 +67,10 @@
 - Performers are per edition, so the same artist on two editions is two rows (search by name finds both). A public Performers page will need a shared artist record.
 - Files uploaded before this release sit in the storage bucket root and are not covered by automatic cleanup; legacy `docs/` and `gallery/` are never purged.
 - The 10MB PDF limit relies on the size the browser declares (images are enforced server-side). Storage cleanup is manual, not scheduled.
-- Public PERFORMERS / COLLABORATORS / AFFILIATES windows are not built, and the public menu does not yet read the custom menu names (admin side done).
+- The Start menu and window navigation use the custom menu names; Performers / Collaborators / Affiliates windows exist and fill as profiles are added.
 - Edition theme switching is not wired up yet (data field exists).
-- Starfield audio reactivity is disconnected, and the plexus does not react to audio.
+- The starfield is disconnected from audio and is hidden while a post-effect is on.
+- The post-effects have not been reviewed on screen or on real mobile hardware yet; Edition 008 and 010 palettes are placeholders.
 
 ## 📈 System Summary
 * **Database**: Supabase Postgres via Prisma (Edition, Performer, Profile, Transmission, RadioShow, Resource, Link, Document, SiteSettings)
