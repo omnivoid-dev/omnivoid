@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { uploadToStorage } from '@/lib/uploadClient';
+import { BITRATE_OPTIONS, compressMp3 } from '@/lib/audioCompress';
 
 interface Mp3UploadModalProps {
   editions: { label: string; value: string }[];
@@ -40,6 +41,9 @@ export default function Mp3UploadModal({ editions, initialData, onClose, onSucce
   const [newPerformerYoutube, setNewPerformerYoutube] = useState('');
 
   const [isSaving, setIsSaving] = useState(false);
+  const [bitrate, setBitrate] = useState(128);
+  const [compressProgress, setCompressProgress] = useState<number | null>(null);
+  const [compressNote, setCompressNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -123,7 +127,19 @@ export default function Mp3UploadModal({ editions, initialData, onClose, onSucce
       let url: string | undefined;
       let filePath: string | undefined;
       if (file) {
-        const up = await uploadToStorage(file, 'audio', file.type || 'audio/mpeg');
+        // Compress first (browser-side), then upload the smaller file
+        setCompressProgress(0);
+        const prepared = await compressMp3(file, bitrate, duration, setCompressProgress);
+        setCompressProgress(null);
+        const mb = (n: number) => (n / 1024 / 1024).toFixed(1);
+        setCompressNote(
+          prepared.compressed
+            ? `Compressed ${mb(prepared.before)}MB to ${mb(prepared.after)}MB.`
+            : prepared.reason || null
+        );
+        if (prepared.file.size > 50 * 1024 * 1024) throw new Error('Even after compression this file is over 50MB.');
+
+        const up = await uploadToStorage(prepared.file, 'audio', 'audio/mpeg');
         url = up.publicUrl;
         filePath = up.path;
       }
@@ -157,6 +173,7 @@ export default function Mp3UploadModal({ editions, initialData, onClose, onSucce
       setError(err.message || 'Failed to save audio track');
     } finally {
       setIsSaving(false);
+      setCompressProgress(null);
     }
   };
 
@@ -202,6 +219,20 @@ export default function Mp3UploadModal({ editions, initialData, onClose, onSucce
               )}
             </div>
           </div>
+
+          {(file || !isEdit) && (
+            <div>
+              <label className={labelCls}>Compression</label>
+              <select value={bitrate} onChange={(e) => setBitrate(parseInt(e.target.value))} className={inputCls}>
+                {BITRATE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-white/30 mt-1">Re-encoded in your browser before upload. Tracks already at or below the chosen bitrate are left as they are.</p>
+            </div>
+          )}
 
           <div>
             <label className={labelCls}>Track Name * (shown in the player; edit freely)</label>
@@ -283,6 +314,19 @@ export default function Mp3UploadModal({ editions, initialData, onClose, onSucce
             <span className="text-[10px] font-bold text-white/60">VISIBLE IN PLAYER</span>
             <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="w-4 h-4 accent-[#99ccff]" />
           </label>
+
+          {compressProgress !== null && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-[10px] font-mono text-[#99ccff]">
+                <span>COMPRESSING...</span>
+                <span>{Math.round(compressProgress * 100)}%</span>
+              </div>
+              <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                <div className="bg-[#99ccff] h-full transition-all duration-200" style={{ width: `${compressProgress * 100}%` }} />
+              </div>
+            </div>
+          )}
+          {compressNote && compressProgress === null && <p className="text-[10px] text-emerald-400">{compressNote}</p>}
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
             <button type="button" onClick={onClose} disabled={isSaving} className="px-5 py-2 text-xs font-bold text-white/40 hover:text-white">

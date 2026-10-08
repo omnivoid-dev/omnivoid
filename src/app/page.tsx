@@ -58,6 +58,11 @@ interface MenuSection {
   windowPosition: { top: string; left: string };
 }
 
+// Tracks served from /public/audio (no database entry needed)
+const BUILT_IN_TRACKS: AudioTrack[] = [
+  { id: 'builtin-47k-phase-01', title: '47K - Phase 01', artist: '47K', url: '/audio/47K_Phase_01.mp3', editionName: '47K' },
+];
+
 const windowGridPositions: Record<string, { top: string; left: string }> = {
   'research': { top: '50vh', left: '50vw' },
   'rituals': { top: '50vh', left: '50vw' },
@@ -128,7 +133,9 @@ export default function Home() {
     if (isSplashComplete && !agentSystemRef.current) {
       agentSystemRef.current = AgentSystem.getInstance();
     }
-  }, [isSplashComplete]);
+    // The plexus pulses with the audio player's analysis
+    agentSystemRef.current?.setAudioSource(getAudioData);
+  }, [isSplashComplete, getAudioData]);
 
   // Expose global functions for media links
   useEffect(() => {
@@ -158,8 +165,8 @@ export default function Home() {
     }
   }, [selectedEditionId, content]);
 
-  // Collect audio tracks from database resources
-  const audioTracks: AudioTrack[] = (content?.resources || [])
+  // Collect audio tracks from database resources, plus the built-in demo track
+  const dbTracks: AudioTrack[] = (content?.resources || [])
     .filter(r => (r.type === 'AUDIO' || r.type === 'audio') && (r.editionId === selectedEditionId || !selectedEditionId))
     .map(r => ({
       id: r.id,
@@ -172,6 +179,7 @@ export default function Home() {
       duration: r.metadata?.duration,
       editionName: content?.editions.find(e => e.id === r.editionId)?.name,
     }));
+  const audioTracks: AudioTrack[] = [...BUILT_IN_TRACKS, ...dbTracks];
 
   const formatSectionContent = (section: MenuSection): { content: string; tabs: Tab[] } => {
     if (!content) return { content: '', tabs: [] };

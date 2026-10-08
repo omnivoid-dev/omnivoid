@@ -1,5 +1,6 @@
 import { Component } from './Base';
 import { Agent } from '../utils/Agent';
+import type { AudioAnalysisData } from '../hooks/useAudioAnalyzer';
 
 /**
  * Color entry for the color lookup table
@@ -64,6 +65,16 @@ export class AgentSystem extends Component {
   private animationFrameId: number | null = null;
   private resizeHandler: (() => void) | null = null;
   private isDestroyed: boolean = false;
+
+  // Mouse interaction: agents gather around the cursor and scale up
+  private mouse = { x: 0, y: 0, active: false };
+  private readonly mouseRadius = 260;
+  private mouseMoveHandler: ((e: PointerEvent) => void) | null = null;
+  private mouseLeaveHandler: (() => void) | null = null;
+
+  // Audio reactivity: agents pulse in scale with the beat
+  private audioSource: (() => AudioAnalysisData) | null = null;
+  private pulse = 0; // smoothed 0..1 beat energy
 
   // Agent properties
   private agents: Agent[] = [];
@@ -361,6 +372,28 @@ export class AgentSystem extends Component {
     };
     globalThis.addEventListener('resize', this.resizeHandler);
     this.resizeHandler();
+
+    // The canvas ignores pointer events, so listen on the window
+    this.mouseMoveHandler = (e: PointerEvent) => {
+      this.mouse.x = e.clientX;
+      this.mouse.y = e.clientY;
+      this.mouse.active = true;
+    };
+    this.mouseLeaveHandler = () => {
+      this.mouse.active = false;
+    };
+    globalThis.addEventListener('pointermove', this.mouseMoveHandler);
+    document.addEventListener('pointerleave', this.mouseLeaveHandler);
+    globalThis.addEventListener('blur', this.mouseLeaveHandler);
+  }
+
+  /**
+   * Connect (or disconnect with null) a source of live audio analysis.
+   * While audio plays, agents pulse in scale with the beat and bass.
+   */
+  setAudioSource(source: (() => AudioAnalysisData) | null): void {
+    this.audioSource = source;
+    if (!source) this.pulse = 0;
   }
 
   /**
@@ -459,27 +492,74 @@ export class AgentSystem extends Component {
       return;
     }
 
+    if (document.hidden) {
+      this.animationFrameId = requestAnimationFrame(this.animate);
+      return;
+    }
+
     this.ctx.clearRect(0, 0, this.width, this.height);
 
-    // Draw connections
+    // ---- Audio: smoothed pulse (fast attack, slow decay) + per-agent frequency bin ----
+    let freq: Uint8Array | null = null;
+    if (this.audioSource) {
+      const audio = this.audioSource();
+      freq = audio.frequencyData;
+      const level = audio.bass * 0.7 + audio.overallEnergy * 0.3;
+      const target = audio.isBeat ? Math.min(1, 0.55 + audio.bass * 0.6) : level * 0.5;
+      this.pulse = target > this.pulse ? this.pulse + (target - this.pulse) * 0.6 : this.pulse * 0.9;
+    } else {
+      this.pulse *= 0.9;
+    }
+    const connectDist = this.connectDist * (1 + this.pulse * 0.2);
+
+    // ---- Mouse: attract nearby agents, scale them up by proximity ----
+    const mouse = this.mouse;
+    const radius = this.mouseRadius;
+    this.agents.forEach((agent, index) => {
+      let proximity = 0;
+      if (mouse.active) {
+        const dx = mouse.x - agent.x;
+        const dy = mouse.y - agent.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < radius) {
+          proximity = 1 - dist / radius;
+          // Pull toward the cursor, but stop short of collapsing onto it
+          if (dist > 28) {
+            const pull = 0.06 * proximity;
+            agent.steer((dx / dist) * pull, (dy / dist) * pull, 2.4);
+          }
+        }
+      }
+      agent.relax(0.02);
+
+      // Per-agent beat response: low index agents follow bass, high index follow treble
+      let bin = 0;
+      if (freq && freq.length > 0) {
+        bin = freq[Math.min(freq.length - 1, Math.floor((index / this.agentCount) * 128))] / 255;
+      }
+      const beat = this.pulse * 0.6 + bin * this.pulse * 0.8;
+
+      const targetScale = 1 + proximity * 2.2 + beat * 2.4;
+      agent.scale += (targetScale - agent.scale) * 0.18;
+    });
+
+    // ---- Draw connections (denser near the cursor) ----
     for (let i = 0; i < this.agents.length; i++) {
       for (let j = i + 1; j < this.agents.length; j++) {
         const a = this.agents[i];
         const b = this.agents[j];
         const dx = a.x - b.x;
         const dy = a.y - b.y;
+
+        // Connections reach further where agents are enlarged
+        const reach = connectDist * (1 + Math.min(0.6, ((a.scale + b.scale) / 2 - 1) * 0.15));
         const dist = Math.hypot(dx, dy);
-        
-        if (dist < this.connectDist) {
-          // Base opacity based on distance
-          const opacity = 1 - dist / this.connectDist;
-          
-          // Get color for the connection
-          const connectionColor = this.getConnectionColor(i, j);
-          
-          this.ctx.globalAlpha = Math.min(1, opacity);
-          this.ctx.lineWidth = 1;
-          this.ctx.strokeStyle = connectionColor;
+
+        if (dist < reach) {
+          const opacity = 1 - dist / reach;
+          this.ctx.globalAlpha = Math.min(1, opacity * (1 + this.pulse * 0.4));
+          this.ctx.lineWidth = 1 + this.pulse * 0.8;
+          this.ctx.strokeStyle = this.getConnectionColor(i, j);
           this.ctx.beginPath();
           this.ctx.moveTo(a.x, a.y);
           this.ctx.lineTo(b.x, b.y);
@@ -488,35 +568,44 @@ export class AgentSystem extends Component {
       }
     }
 
-    // Update and draw agents
+    // Lines from the cursor to the agents gathered around it
+    if (mouse.active) {
+      this.ctx.lineWidth = 1;
+      this.ctx.strokeStyle = this.currentThemeColors.accent;
+      for (const agent of this.agents) {
+        const dist = Math.hypot(mouse.x - agent.x, mouse.y - agent.y);
+        if (dist < radius) {
+          this.ctx.globalAlpha = (1 - dist / radius) * 0.55;
+          this.ctx.beginPath();
+          this.ctx.moveTo(mouse.x, mouse.y);
+          this.ctx.lineTo(agent.x, agent.y);
+          this.ctx.stroke();
+        }
+      }
+    }
+
+    // ---- Update and draw agents ----
     this.ctx.globalAlpha = 1;
     this.ctx.lineWidth = 1;
-    
+
     // Filter out agents that have left the screen bounds and create new ones to maintain count
     const validAgents: Agent[] = [];
-    
+
     this.agents.forEach((agent, index) => {
-      // Update agent and check if it's still valid
       const isStillValid = agent.update(this.width, this.height, 1.0);
-      
+
       if (isStillValid) {
         validAgents.push(agent);
-        
-        // Get scale for this agent (no audio reactivity)
-        const scale = 1.0;
-        const size = Math.max(0.5, this.baseSize * scale);
-        
-        // Get color for this agent
+
+        const size = Math.max(0.5, this.baseSize * agent.scale);
         const agentColor = this.getAgentColor(index, 0);
-        
-        // Set the agent color
         this.ctx.fillStyle = agentColor;
         this.ctx.strokeStyle = agentColor;
-        
+
         agent.draw(this.ctx, size);
       }
     });
-    
+
     // Replace removed agents with new ones to maintain the target count
     const agentsToAdd = this.agentCount - validAgents.length;
     for (let i = 0; i < agentsToAdd; i++) {
@@ -568,6 +657,17 @@ export class AgentSystem extends Component {
       globalThis.removeEventListener('resize', this.resizeHandler);
       this.resizeHandler = null;
     }
+
+    if (this.mouseMoveHandler) {
+      globalThis.removeEventListener('pointermove', this.mouseMoveHandler);
+      this.mouseMoveHandler = null;
+    }
+    if (this.mouseLeaveHandler) {
+      document.removeEventListener('pointerleave', this.mouseLeaveHandler);
+      globalThis.removeEventListener('blur', this.mouseLeaveHandler);
+      this.mouseLeaveHandler = null;
+    }
+    this.audioSource = null;
 
     if (this.ownsCanvas && this.canvas.parentNode) {
       this.canvas.parentNode.removeChild(this.canvas);

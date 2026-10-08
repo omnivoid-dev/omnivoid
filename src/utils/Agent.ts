@@ -7,6 +7,11 @@ export class Agent {
   public y: number = 0;
   public vx: number = 0;
   public vy: number = 0;
+  /** Natural drift velocity; vx/vy relax back towards it after being steered. */
+  public bvx: number = 0;
+  public bvy: number = 0;
+  /** Smoothed display scale (1 = normal). */
+  public scale: number = 1;
 
   /**
    * Create a new Agent
@@ -29,6 +34,25 @@ export class Agent {
     this.y = Math.random() * height;
     this.vx = (Math.random() - 0.5);
     this.vy = (Math.random() - 0.5);
+    this.bvx = this.vx;
+    this.bvy = this.vy;
+  }
+
+  /** Push the agent (acceleration) and cap its speed. */
+  steer(ax: number, ay: number, maxSpeed: number): void {
+    this.vx += ax;
+    this.vy += ay;
+    const speed = Math.hypot(this.vx, this.vy);
+    if (speed > maxSpeed) {
+      this.vx = (this.vx / speed) * maxSpeed;
+      this.vy = (this.vy / speed) * maxSpeed;
+    }
+  }
+
+  /** Ease velocity back to the natural drift. */
+  relax(rate: number): void {
+    this.vx += (this.bvx - this.vx) * rate;
+    this.vy += (this.bvy - this.vy) * rate;
   }
 
   /**
@@ -52,8 +76,8 @@ export class Agent {
     }
     
     // Bounce off edges if still within bounds
-    if (this.x < 0 || this.x > width) this.vx *= -1;
-    if (this.y < 0 || this.y > height) this.vy *= -1;
+    if (this.x < 0 || this.x > width) { this.vx *= -1; this.bvx *= -1; }
+    if (this.y < 0 || this.y > height) { this.vy *= -1; this.bvy *= -1; }
     
     return true; // Agent is still valid
   }
