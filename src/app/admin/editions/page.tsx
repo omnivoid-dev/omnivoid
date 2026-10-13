@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
 import EditionEditorModal from '@/components/admin/EditionEditorModal';
@@ -26,6 +26,8 @@ export default function EditionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<Edition | null>(null);
   const [showForm, setShowForm] = useState(false);
+  // /admin/editions?edit=latest jumps straight into the Latest Ritual's editor (once)
+  const jumpedToLatest = useRef(false);
 
   useEffect(() => {
     fetchEditions();
@@ -36,7 +38,17 @@ export default function EditionsPage() {
     try {
       const res = await fetch('/api/admin/editions');
       const data = await res.json();
-      if (data.success) setEditions(data.data);
+      if (data.success) {
+        setEditions(data.data);
+        if (!jumpedToLatest.current && new URLSearchParams(window.location.search).get('edit') === 'latest') {
+          jumpedToLatest.current = true;
+          const latest = data.data.find((e: Edition) => e.isLatestRitual);
+          if (latest) {
+            setEditingItem(latest);
+            setShowForm(true);
+          }
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch editions:', err);
     } finally {
@@ -62,8 +74,8 @@ export default function EditionsPage() {
     <AdminLayout>
       <div className="flex items-center justify-between mb-8 font-mono">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">Editions & Rituals</h1>
-          <p className="text-sm text-white/40">Manage event series, single event dates, artist handles, and posters.</p>
+          <h1 className="text-2xl font-bold text-white mb-1">Editions</h1>
+          <p className="text-sm text-white/40">Manage editions: dates, posters, workshops, lineups and themes. Tick "Latest Ritual" on the Ritual tab to feature one on the main page (with its ticket links).</p>
         </div>
         <button
           onClick={() => { setEditingItem(null); setShowForm(true); }}

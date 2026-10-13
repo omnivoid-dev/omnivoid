@@ -33,7 +33,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const navItems = [
     { label: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
-    { label: 'Editions & Rituals', href: '/admin/editions', icon: '🏛️' },
+    { label: 'Latest Ritual', href: '/admin/editions?edit=latest', icon: '★' },
+    { label: 'Editions', href: '/admin/editions', icon: '🏛️' },
     { label: 'Transmissions (YouTube)', href: '/admin/transmissions', icon: '📡' },
     { label: 'Radio (Mixcloud)', href: '/admin/radio', icon: '📻' },
     { label: 'Performers', href: '/admin/performers', icon: '🎤' },

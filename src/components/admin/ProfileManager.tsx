@@ -275,7 +275,7 @@ function ProfileModal({
 
           {type === 'PERFORMER' && isEdit && (
             <p className="text-[10px] text-white/40 border border-dashed border-white/10 rounded p-3">
-              Appears in: {editions.length ? editions.join(', ') : 'no editions yet'}. Add performers to an edition from Editions & Rituals; they link to this profile by name.
+              Appears in: {editions.length ? editions.join(', ') : 'no editions yet'}. Add performers to an edition from Editions; they link to this profile by name.
             </p>
           )}
 

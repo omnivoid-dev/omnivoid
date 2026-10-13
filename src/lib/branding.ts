@@ -37,7 +37,8 @@ export const DEFAULT_BRANDING: SiteBranding = {
 /** Menu sections that carry an icon, with the built-in image (if the original project had one). */
 export const MENU_ICON_SLOTS: { id: string; label: string; defaultUrl: string | null; fallback: string }[] = [
   { id: 'research', label: 'Research', defaultUrl: '/menuicons/research.png', fallback: '📚' },
-  { id: 'rituals', label: 'Rituals', defaultUrl: '/menuicons/gigs.png', fallback: '🎸' },
+  { id: 'latest', label: 'Latest Ritual', defaultUrl: '/menuicons/gigs.png', fallback: '★' },
+  { id: 'rituals', label: 'Editions', defaultUrl: '/menuicons/gigs.png', fallback: '🎸' },
   { id: 'transmissions', label: 'Transmissions', defaultUrl: '/menuicons/livetransmissions.png', fallback: '📡' },
   { id: 'radio', label: 'Radio', defaultUrl: '/menuicons/radio.png', fallback: '📻' },
   { id: 'gallery', label: 'Gallery', defaultUrl: '/menuicons/gallery.png', fallback: '🖼️' },

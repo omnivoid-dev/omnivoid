@@ -15,6 +15,7 @@ import { AgentOverlay } from '@/components/AgentOverlay';
 import { TintedImage } from '@/components/TintedImage';
 import { DEFAULT_LOGO_URL, LOGO_ASPECT, MENU_ICON_SLOTS, iconUrlFor, menuLabelFor, resolveBranding, type SiteBranding } from '@/lib/branding';
 import { RitualsWindow } from '@/components/edition/RitualsWindow';
+import { LatestRitualWindow } from '@/components/edition/LatestRitualWindow';
 import { TransmissionsWindow } from '@/components/edition/TransmissionsWindow';
 import { RadioWindow, type PublicRadioShow } from '@/components/edition/RadioWindow';
 import { mixcloudEmbedSrc } from '@/lib/mixcloud';
@@ -56,6 +57,7 @@ interface ContentStructure {
 // Section order in the window's navigation strip and the Start menu.
 // Profile sections only appear once they have something to show.
 const SECTION_ORDER = [
+  'latest',
   'rituals',
   'transmissions',
   'radio',
@@ -123,11 +125,10 @@ export default function Home() {
       .then(data => {
         if (data.success) {
           setContent(data.data);
-          if (data.data.currentEdition) {
-            setSelectedEditionId(data.data.currentEdition.id);
-          } else if (data.data.editions.length > 0) {
-            setSelectedEditionId(data.data.editions[0].id);
-          }
+          // Start on the most recent past edition; the latest ritual has its own section
+          const past = [...data.data.editions].filter((e: PublicEdition) => !e.isLatestRitual).sort((a: PublicEdition, b: PublicEdition) => b.sortOrder - a.sortOrder);
+          if (past.length > 0) setSelectedEditionId(past[0].id);
+          else if (data.data.editions.length > 0) setSelectedEditionId(data.data.editions[0].id);
         }
         setIsLoading(false);
       })
@@ -203,8 +204,14 @@ export default function Home() {
 
   const profiles = content?.profiles || [];
 
+  // The edition flagged "Latest Ritual" lives in its own section; the Editions list is everything else, newest first
+  const allEditions = [...(content?.editions || [])].sort((a, b) => b.sortOrder - a.sortOrder);
+  const latestEdition = allEditions.find((e) => e.isLatestRitual) ?? null;
+  const pastEditions = latestEdition ? allEditions.filter((e) => !e.isLatestRitual) : allEditions;
+
   // Sections that currently have something to show
   const visibleSectionIds = SECTION_ORDER.filter((id) => {
+    if (id === 'latest') return !!latestEdition;
     const profileSection = PROFILE_SECTIONS[id];
     return profileSection ? profiles.some((p) => p.type === profileSection.type) : true;
   });
@@ -244,7 +251,17 @@ export default function Home() {
     return 'Saved to this edition.';
   };
 
+  // Opening the latest ritual also applies its theme, like selecting any edition
+  const openLatest = () => {
+    if (latestEdition) selectEdition(latestEdition.id);
+    openSection('latest');
+  };
+
+  // Menu / navigation entry point for a section
+  const goToSection = (id: string) => (id === 'latest' ? openLatest() : openSection(id));
+
   const openEdition = (editionId: string) => {
+    if (editionId === latestEdition?.id) return openLatest();
     selectEdition(editionId);
     openSection('rituals');
   };
@@ -269,10 +286,12 @@ export default function Home() {
     }
 
     switch (sectionId) {
+      case 'latest':
+        return <LatestRitualWindow edition={latestEdition} profiles={profiles} onOpenProfile={openProfile} />;
       case 'rituals':
         return (
           <RitualsWindow
-            editions={content.editions}
+            editions={pastEditions}
             selectedEditionId={selectedEditionId}
             onSelectEdition={selectEdition}
             onPlayVideo={play}
@@ -281,9 +300,9 @@ export default function Home() {
           />
         );
       case 'transmissions':
-        return <TransmissionsWindow editions={content.editions} kinds={['SET', 'WORKSHOP', 'OTHER']} title="Transmissions" onPlayVideo={play} />;
+        return <TransmissionsWindow editions={allEditions} kinds={['SET', 'WORKSHOP', 'OTHER']} title="Transmissions" onPlayVideo={play} />;
       case 'labs':
-        return <TransmissionsWindow editions={content.editions} kinds={['LABS']} title="Labs sessions" onPlayVideo={play} />;
+        return <TransmissionsWindow editions={allEditions} kinds={['LABS']} title="Labs sessions" onPlayVideo={play} />;
       case 'radio':
         return <RadioWindow shows={content.radioShows || []} />;
       case 'research':
@@ -382,16 +401,38 @@ export default function Home() {
         </motion.div>
       </div>
 
+      {/* Latest Ritual: a pill above the logo, as on the original site */}
+      {latestEdition && (
+        <button
+          onClick={openLatest}
+          title="See the upcoming edition: poster, workshop and tickets"
+          className="fixed left-1/2 top-[calc(50%-190px)] -translate-x-1/2 z-[100] flex flex-col items-center gap-0.5 px-5 py-2 rounded-full bg-[#111111]/90 border border-[#99ccff] text-[#99ccff] font-mono font-bold uppercase tracking-[0.15em] backdrop-blur-md shadow-[0_0_20px_rgba(153,204,255,0.25),4px_4px_8px_rgba(0,0,0,0.5)] transition-all hover:bg-[#99ccff] hover:text-black hover:scale-105"
+        >
+          <span className="flex items-center gap-2 text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+            {menuLabelFor(branding, 'latest')}
+          </span>
+          <span className="text-[9px] opacity-60 tracking-widest">
+            {latestEdition.name}
+            {latestEdition.eventDate ? ` · ${new Date(latestEdition.eventDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}` : ''}
+          </span>
+        </button>
+      )}
+
       {/* Shared window: sections swap inside it */}
       <WindowShell
         isOpen={shellOpen}
         onClose={() => setShellOpen(false)}
         title={`${menuLabelFor(branding, activeSection)} // ${
-          profileFocus ? profiles.find((p) => p.id === profileFocus)?.name || '...' : selectedEditionName || '...'
+          profileFocus
+            ? profiles.find((p) => p.id === profileFocus)?.name || '...'
+            : activeSection === 'latest'
+              ? latestEdition?.name || '...'
+              : selectedEditionName || '...'
         }`}
         sections={visibleSectionIds.map<ShellSection>((id) => ({ id, label: menuLabelFor(branding, id), icon: renderIcon(id) }))}
         activeId={activeSection}
-        onSelect={(id) => openSection(id)}
+        onSelect={goToSection}
         onBack={profileFocus ? () => setProfileFocus(null) : undefined}
       >
         <div key={`${activeSection}:${profileFocus ?? ''}`}>{renderSection(activeSection)}</div>
@@ -498,7 +539,7 @@ export default function Home() {
               {visibleSectionIds.map((id) => (
                 <button
                   key={id}
-                  onClick={() => openSection(id)}
+                  onClick={() => goToSection(id)}
                   className={`w-full flex items-center gap-3 px-3 py-2 hover:text-[#99ccff] hover:bg-white/5 rounded transition-all text-xs font-mono text-left ${
                     shellOpen && activeSection === id ? 'text-[#99ccff] bg-white/5' : 'text-white/60'
                   }`}

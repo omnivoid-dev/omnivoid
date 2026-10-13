@@ -15,6 +15,11 @@
 
 ## 🎯 Next Order of Business
 
+### Latest Ritual button and section — BUILT
+* A **LATEST RITUAL** pill above the logo on the main page (as on the original site) opens the shared window on a new **Latest Ritual** section: the poster, the workshop poster and details, and each one's ticket link (tabs LIVE / WORKSHOP), plus the lineup. It shows whichever edition has **Latest Ritual** ticked (Ritual tab of the edition editor); opening it also applies that edition's theme.
+* The **Editions** section (formerly "Rituals") lists every other edition, newest first, so the latest ritual does not appear in it. Untick the flag after the event and the edition drops into Editions automatically. Admin: sidebar "Editions & Rituals" is now "Editions", with a "Latest Ritual" shortcut above it.
+* Still to do: the ticket link, poster and lineup for Edition 010 once available.
+
 ### 0. 🎨 Edition Themes + GLSL Effects — ALL TEN BUILT, NEEDS A VISUAL REVIEW
 * **Done:** each edition has a theme (preset + palette) edited in the Theme tab of the edition editor. Selecting an edition applies it: the agents crossfade to the edition's ink and the page background follows. Windows stay constant. The site opens on the neutral look; a footer chip returns to it. Presets live in `src/lib/themes.ts` (Edition 008 and 010 palettes are placeholders).
 * **Dither built (Edition 001 and 007):** `BackgroundFX` redraws the plexus through an 8x8 Bayer dither at a low "cell" resolution (3px; chunkier on phones), with a drifting noise field, a glow under the cursor and the beat pulse feeding the threshold. Crossfades in and out, has a footer FX toggle, and falls back to the plain plexus without WebGL or with reduced motion. Add `?fxdebug=1` to the URL for live tuning sliders (cell, contrast, field, glow, beat). It hides the starfield while active.
