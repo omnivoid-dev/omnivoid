@@ -155,14 +155,23 @@ export default function Home() {
 
   // Deep link: /?section=rituals opens the window on that section once the site is ready
   const initialSectionRef = useRef<string | null>(null);
+  const initialProfileRef = useRef<string | null>(null);
   useEffect(() => {
-    initialSectionRef.current = new URLSearchParams(window.location.search).get('section');
+    const params = new URLSearchParams(window.location.search);
+    initialSectionRef.current = params.get('section');
+    initialProfileRef.current = params.get('profile');
   }, []);
 
   useEffect(() => {
     const wanted = initialSectionRef.current;
     if (wanted && isSplashComplete && content && SECTION_ORDER.includes(wanted)) {
       initialSectionRef.current = null;
+      const wantedProfile = initialProfileRef.current;
+      initialProfileRef.current = null;
+      if (wantedProfile) {
+        const match = (content.profiles || []).find((p) => p.slug === wantedProfile && SECTION_FOR_PROFILE_TYPE[p.type] === wanted);
+        if (match) setProfileFocus(match.id);
+      }
       setActiveSection(wanted);
       setShellOpen(true);
     }
@@ -173,6 +182,7 @@ export default function Home() {
     const url = new URL(window.location.href);
     if (shellOpen) url.searchParams.set('section', activeSection);
     else url.searchParams.delete('section');
+    url.searchParams.delete('profile');
     window.history.replaceState(null, '', url.toString());
   }, [shellOpen, activeSection]);
 
@@ -204,10 +214,9 @@ export default function Home() {
 
   const profiles = content?.profiles || [];
 
-  // The edition flagged "Latest Ritual" lives in its own section; the Editions list is everything else, newest first
+  // The edition flagged "Latest Ritual" also has its own section; the Editions list holds every edition, newest first
   const allEditions = [...(content?.editions || [])].sort((a, b) => b.sortOrder - a.sortOrder);
   const latestEdition = allEditions.find((e) => e.isLatestRitual) ?? null;
-  const pastEditions = latestEdition ? allEditions.filter((e) => !e.isLatestRitual) : allEditions;
 
   // Sections that currently have something to show
   const visibleSectionIds = SECTION_ORDER.filter((id) => {
@@ -291,7 +300,7 @@ export default function Home() {
       case 'rituals':
         return (
           <RitualsWindow
-            editions={pastEditions}
+            editions={allEditions}
             selectedEditionId={selectedEditionId}
             onSelectEdition={selectEdition}
             onPlayVideo={play}

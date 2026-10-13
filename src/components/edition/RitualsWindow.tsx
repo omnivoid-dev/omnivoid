@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { PublicEdition, PublicProfile, instagramUrl, youtubeChannelUrl } from './types';
+import { PublicEdition, PublicProfile, instagramUrl, youtubeChannelUrl, isComingSoon } from './types';
+import { ComingSoon } from './ComingSoon';
 
 interface RitualsWindowProps {
   editions: PublicEdition[];
@@ -40,6 +41,7 @@ export function RitualsWindow({ editions, selectedEditionId, onSelectEdition, on
 
   const performerName = (id?: string | null) => edition.performers.find((p) => p.id === id)?.name;
   const where = [edition.venue, edition.city].filter(Boolean).join(', ');
+  const soon = isComingSoon(edition);
 
   return (
     <div className="font-mono space-y-5 text-white">
@@ -97,6 +99,10 @@ export function RitualsWindow({ editions, selectedEditionId, onSelectEdition, on
         )}
       </div>
 
+      {soon ? (
+        <ComingSoon edition={edition} />
+      ) : (
+        <>
       {edition.description && <p className="text-xs text-white/70 leading-relaxed whitespace-pre-wrap">{edition.description}</p>}
 
       {/* Posters */}
@@ -104,11 +110,13 @@ export function RitualsWindow({ editions, selectedEditionId, onSelectEdition, on
         <div className="space-y-2">
           <Poster url={edition.posterUrl} alt={`${edition.name} poster`} fallback="POSTER" />
           <span className="block text-center text-[10px] text-[#99ccff] font-bold tracking-wider">MAIN EVENT</span>
+          {edition.posterCredits && <span className="block text-center text-[9px] text-white/40">Poster: {edition.posterCredits}</span>}
         </div>
         {edition.hasWorkshop && (
           <div className="space-y-2">
             <Poster url={edition.workshopPosterUrl} alt="Workshop poster" fallback="WORKSHOP" />
             <span className="block text-center text-[10px] text-emerald-400 font-bold tracking-wider">WORKSHOP</span>
+            {edition.posterCredits && <span className="block text-center text-[9px] text-white/40">Poster: {edition.posterCredits}</span>}
           </div>
         )}
       </div>
@@ -190,6 +198,8 @@ export function RitualsWindow({ editions, selectedEditionId, onSelectEdition, on
             </button>
           ))}
         </div>
+      )}
+        </>
       )}
     </div>
   );

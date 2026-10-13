@@ -5,9 +5,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { verifyAdminToken } from '@/lib/auth';
 import { uniqueSlug, ProfileKind } from '@/lib/profiles';
+import { sanitizeLinks, sanitizeSocials } from '@/lib/profileLinks';
 
 const TYPES: ProfileKind[] = ['PERFORMER', 'COLLABORATOR', 'AFFILIATE'];
 const clean = (v: unknown) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
@@ -46,6 +48,8 @@ export async function POST(request: NextRequest) {
         website: clean(body.website),
         instagram: clean(body.instagram),
         youtube: clean(body.youtube),
+        socials: sanitizeSocials(body.socials),
+        links: sanitizeLinks(body.links) as unknown as Prisma.InputJsonValue,
         isActive: body.isActive ?? true,
         sortOrder: Number(body.sortOrder) || 0,
       },

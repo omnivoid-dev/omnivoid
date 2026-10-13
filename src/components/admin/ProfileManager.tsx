@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
 import ImageUploadField from '@/components/admin/ImageUploadField';
+import { JSON_SOCIAL_KEYS, SOCIAL_NETWORKS, type RelatedLink } from '@/lib/profileLinks';
 
 type ProfileType = 'PERFORMER' | 'COLLABORATOR' | 'AFFILIATE';
 
@@ -19,6 +20,8 @@ interface Profile {
   website?: string | null;
   instagram?: string | null;
   youtube?: string | null;
+  socials?: Record<string, string> | null;
+  links?: RelatedLink[] | null;
   isActive: boolean;
   sortOrder: number;
   performers?: { edition: { id: string; name: string } }[];
@@ -167,7 +170,7 @@ function ProfileModal({
   roleLabel,
   rolePlaceholder,
   imageLabel,
-  bioLabel = 'Write-up',
+  bioLabel = 'Bio / write-up (shown on the site and used for search results)',
   initialData,
   onClose,
   onSuccess,
@@ -180,6 +183,8 @@ function ProfileModal({
   const [website, setWebsite] = useState(initialData?.website || '');
   const [instagram, setInstagram] = useState(initialData?.instagram || '');
   const [youtube, setYoutube] = useState(initialData?.youtube || '');
+  const [socials, setSocials] = useState<Record<string, string>>(initialData?.socials || {});
+  const [links, setLinks] = useState<RelatedLink[]>(initialData?.links || []);
   const [sortOrder, setSortOrder] = useState(initialData?.sortOrder || 0);
   const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
   const [isSaving, setIsSaving] = useState(false);
@@ -193,7 +198,7 @@ function ProfileModal({
       const res = await fetch(isEdit ? `/api/admin/profiles/${initialData!.id}` : '/api/admin/profiles', {
         method: isEdit ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, name, role, bio, imageUrl, website, instagram, youtube, sortOrder, isActive }),
+        body: JSON.stringify({ type, name, role, bio, imageUrl, website, instagram, youtube, socials, links, sortOrder, isActive }),
       });
       const d = await res.json();
       if (!d.success) throw new Error(d.error || 'Failed to save');
@@ -259,6 +264,59 @@ function ProfileModal({
             <div>
               <label className={labelCls}>YouTube</label>
               <input value={youtube} onChange={(e) => setYoutube(e.target.value)} placeholder="@handle or URL" className={inputCls} />
+            </div>
+          </div>
+
+          {/* More socials */}
+          <div>
+            <label className={labelCls}>More socials</label>
+            <div className="grid grid-cols-2 gap-3">
+              {SOCIAL_NETWORKS.filter((n) => JSON_SOCIAL_KEYS.includes(n.key)).map((n) => (
+                <input
+                  key={n.key}
+                  value={socials[n.key] || ''}
+                  onChange={(e) => setSocials({ ...socials, [n.key]: e.target.value })}
+                  placeholder={`${n.label}: ${n.placeholder}`}
+                  className={inputCls}
+                />
+              ))}
+            </div>
+            <p className="text-[10px] text-white/30 mt-1">Handles ("@name") or full links. Invalid entries are dropped on save.</p>
+          </div>
+
+          {/* Related links */}
+          <div>
+            <div className="flex items-center justify-between">
+              <label className={labelCls}>Related links</label>
+              <button
+                type="button"
+                onClick={() => setLinks([...links, { label: '', url: '' }])}
+                className="text-[10px] font-bold text-[#99ccff] border border-[#99ccff]/30 rounded px-2.5 py-1 mb-1.5 hover:bg-[#99ccff]/10"
+              >
+                + ADD LINK
+              </button>
+            </div>
+            {links.length === 0 && <p className="text-[10px] text-white/30">Press kit, interviews, label page, articles...</p>}
+            <div className="space-y-2">
+              {links.map((l, i) => (
+                <div key={i} className="grid grid-cols-12 gap-2">
+                  <input
+                    className={`col-span-4 ${inputCls}`}
+                    value={l.label}
+                    onChange={(e) => setLinks(links.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+                    placeholder="Label"
+                  />
+                  <input
+                    className={`col-span-7 ${inputCls}`}
+                    value={l.url}
+                    onChange={(e) => setLinks(links.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))}
+                    placeholder="https://..."
+                  />
+                  <button type="button" onClick={() => setLinks(links.filter((_, j) => j !== i))} className="col-span-1 text-red-400 hover:text-red-300 text-xs">
+                    ✕
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
 

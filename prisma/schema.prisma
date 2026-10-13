@@ -33,6 +33,10 @@ model Edition {
   ticketUrl           String?   // Only kept while isLatestRitual (cleared by the API otherwise)
   ticketLabel         String?   // "GET TICKETS" / "SOLD OUT"
 
+  // Poster credits: optional, and only shown on the site when switched on
+  showPosterCredits   Boolean   @default(false)
+  posterCredits       String?
+
   // Workshop slot
   hasWorkshop         Boolean   @default(false)
   workshopTitle       String?
@@ -99,6 +103,8 @@ model Profile {
   website   String?
   instagram String?
   youtube   String?
+  socials   Json?       // Other networks: { spotify, soundcloud, bandcamp, mixcloud, facebook, x, tiktok }
+  links     Json?       // Related links: [{ label, url }]
   isActive  Boolean     @default(true)
   sortOrder Int         @default(0)
   createdAt DateTime    @default(now())

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { verifyAdminToken } from '@/lib/auth';
 import { uniqueSlug } from '@/lib/profiles';
 import { deleteIfUnreferenced } from '@/lib/storage';
+import { sanitizeLinks, sanitizeSocials } from '@/lib/profileLinks';
 
 const clean = (v: unknown) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
 
@@ -23,6 +24,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     for (const k of ['role', 'bio', 'imageUrl', 'website', 'instagram', 'youtube']) {
       if (body[k] !== undefined) data[k] = clean(body[k]);
     }
+    if (body.socials !== undefined) data.socials = sanitizeSocials(body.socials);
+    if (body.links !== undefined) data.links = sanitizeLinks(body.links);
     if (body.isActive !== undefined) data.isActive = !!body.isActive;
     if (body.sortOrder !== undefined) data.sortOrder = Number(body.sortOrder) || 0;
 

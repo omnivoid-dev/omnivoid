@@ -12,7 +12,7 @@ export default function PerformersPage() {
       singular="performer"
       roleLabel="Role"
       rolePlaceholder="e.g. Producer / DJ"
-      imageLabel="Photo"
+      imageLabel="Profile picture / logo"
     />
   );
 }

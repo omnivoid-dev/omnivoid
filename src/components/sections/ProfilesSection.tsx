@@ -1,6 +1,7 @@
 'use client';
 
-import { PublicProfile, instagramUrl, youtubeChannelUrl } from '@/components/edition/types';
+import { PublicProfile } from '@/components/edition/types';
+import { profilePath, profileSocials } from '@/lib/profileLinks';
 
 interface ProfilesSectionProps {
   profiles: PublicProfile[];
@@ -13,13 +14,16 @@ interface ProfilesSectionProps {
   onOpenEdition?: (editionId: string) => void;
 }
 
-/** Master/detail inside the shared window: a list of profiles, or one profile with its write-up. */
+/** Master/detail inside the shared window: a list of profiles, or one profile with its bio, socials and links. */
 export function ProfilesSection({ profiles, type, heading, icon, focusId, onFocus, onOpenEdition }: ProfilesSectionProps) {
   const list = profiles.filter((p) => p.type === type);
   const focus = focusId ? list.find((p) => p.id === focusId) : null;
 
   if (focus) {
     const paragraphs = (focus.bio || '').split(/\n\s*\n/).filter((p) => p.trim());
+    const socials = profileSocials(focus);
+    const related = focus.links || [];
+
     return (
       <div className="font-mono space-y-5">
         <div className="flex gap-4 items-start">
@@ -28,23 +32,21 @@ export function ProfilesSection({ profiles, type, heading, icon, focusId, onFocu
             <span className="text-[10px] text-[#99ccff] tracking-widest font-bold">{heading}</span>
             <h3 className="text-lg font-bold">{focus.name}</h3>
             {focus.role && <p className="text-xs text-white/50">{focus.role}</p>}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[10px]">
-              {focus.website && (
-                <a href={focus.website} target="_blank" rel="noopener noreferrer" className="text-[#99ccff] hover:underline">
-                  🌐 Website
-                </a>
-              )}
-              {focus.instagram && (
-                <a href={instagramUrl(focus.instagram)} target="_blank" rel="noopener noreferrer" className="text-[#99ccff] hover:underline">
-                  📷 {focus.instagram}
-                </a>
-              )}
-              {focus.youtube && (
-                <a href={youtubeChannelUrl(focus.youtube)} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:underline">
-                  📺 YouTube
-                </a>
-              )}
-            </div>
+            {socials.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2.5">
+                {socials.map((s) => (
+                  <a
+                    key={s.key}
+                    href={s.url}
+                    target="_blank"
+                    rel="me noopener noreferrer"
+                    className="text-[10px] px-2.5 py-1 border border-[#99ccff]/30 text-[#99ccff] rounded hover:bg-[#99ccff]/10 transition-colors"
+                  >
+                    {s.label} ↗
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -57,7 +59,22 @@ export function ProfilesSection({ profiles, type, heading, icon, focusId, onFocu
             ))}
           </div>
         ) : (
-          <p className="text-xs text-white/30">No write-up yet.</p>
+          <p className="text-xs text-white/30">No bio yet.</p>
+        )}
+
+        {related.length > 0 && (
+          <div className="p-4 bg-white/5 border border-white/10 rounded-lg space-y-2">
+            <span className="text-[10px] text-[#99ccff] font-bold tracking-widest block">RELATED</span>
+            <ul className="space-y-1.5">
+              {related.map((l, i) => (
+                <li key={i}>
+                  <a href={l.url} target="_blank" rel="noopener noreferrer" className="text-xs text-white/80 hover:text-[#99ccff] underline decoration-dotted underline-offset-4 break-all">
+                    {l.label} ↗
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {type === 'PERFORMER' && focus.editions.length > 0 && (
@@ -76,6 +93,10 @@ export function ProfilesSection({ profiles, type, heading, icon, focusId, onFocu
             </div>
           </div>
         )}
+
+        <a href={profilePath(focus.type, focus.slug)} className="inline-block text-[10px] text-white/35 hover:text-[#99ccff] tracking-widest">
+          OPEN PROFILE PAGE ↗
+        </a>
       </div>
     );
   }

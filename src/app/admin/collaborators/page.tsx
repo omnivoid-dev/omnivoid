@@ -12,7 +12,7 @@ export default function CollaboratorsPage() {
       singular="collaborator"
       roleLabel="Role"
       rolePlaceholder="e.g. Visual artist, Sound engineer"
-      imageLabel="Photo / Logo"
+      imageLabel="Profile picture / logo"
     />
   );
 }

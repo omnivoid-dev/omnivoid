@@ -26,6 +26,8 @@ export interface PublicProfile {
   website?: string | null;
   instagram?: string | null;
   youtube?: string | null;
+  socials?: Record<string, string> | null;
+  links?: { label: string; url: string }[] | null;
   editions: { id: string; name: string }[];
 }
 
@@ -38,6 +40,8 @@ export interface PublicEdition {
   venue?: string | null;
   city?: string | null;
   posterUrl?: string | null;
+  /** Optional poster credits; only present when switched on in the CMS. */
+  posterCredits?: string | null;
   isLatestRitual?: boolean;
   ticketUrl?: string | null;
   ticketLabel?: string | null;
@@ -57,3 +61,9 @@ export interface PublicEdition {
 export const instagramUrl = (h: string) => `https://instagram.com/${h.replace(/^@/, '')}`;
 export const youtubeChannelUrl = (h: string) =>
   h.startsWith('http') ? h : `https://youtube.com/${h.startsWith('@') ? h : `@${h}`}`;
+
+/** An upcoming edition with nothing announced yet shows COMING SOON instead of empty poster / lineup slots. */
+export function isComingSoon(e: PublicEdition): boolean {
+  const upcoming = !!e.isLatestRitual || (!!e.eventDate && new Date(e.eventDate).getTime() > Date.now());
+  return upcoming && !e.posterUrl && !e.workshopPosterUrl && e.performers.length === 0 && !e.description;
+}

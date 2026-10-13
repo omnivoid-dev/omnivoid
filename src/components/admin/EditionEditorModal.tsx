@@ -63,6 +63,8 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
   // Ritual
   const [isLatestRitual, setIsLatestRitual] = useState(initialData?.isLatestRitual || false);
   const [posterUrl, setPosterUrl] = useState(initialData?.posterUrl || '');
+  const [showPosterCredits, setShowPosterCredits] = useState(initialData?.showPosterCredits || false);
+  const [posterCredits, setPosterCredits] = useState(initialData?.posterCredits || '');
   const [ticketUrl, setTicketUrl] = useState(initialData?.ticketUrl || '');
   const [ticketLabel, setTicketLabel] = useState(initialData?.ticketLabel || 'GET TICKETS');
 
@@ -163,6 +165,8 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
           sortOrder,
           isLatestRitual,
           posterUrl,
+          showPosterCredits,
+          posterCredits,
           ticketUrl,
           ticketLabel,
           hasWorkshop,
@@ -291,6 +295,29 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
               </label>
 
               <ImageUploadField label="Main Edition Poster" value={posterUrl} onChange={setPosterUrl} />
+
+              {/* Poster credits: optional, shown under the posters only when switched on */}
+              <div className="p-4 bg-white/5 border border-white/10 rounded space-y-3">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <span>
+                    <span className="text-xs font-bold text-white/80 block">POSTER CREDITS</span>
+                    <span className="text-[10px] text-white/40">Show a credit line under the poster(s) on the site</span>
+                  </span>
+                  <input type="checkbox" checked={showPosterCredits} onChange={(e) => setShowPosterCredits(e.target.checked)} className="w-4 h-4 accent-[#99ccff]" />
+                </label>
+                {showPosterCredits && (
+                  <div>
+                    <label className={labelCls}>Credit</label>
+                    <input
+                      type="text"
+                      value={posterCredits}
+                      onChange={(e) => setPosterCredits(e.target.value)}
+                      placeholder="e.g. Design by Name, photo by Name"
+                      className={inputCls}
+                    />
+                  </div>
+                )}
+              </div>
 
               {isLatestRitual ? (
                 <div className="grid grid-cols-3 gap-4">

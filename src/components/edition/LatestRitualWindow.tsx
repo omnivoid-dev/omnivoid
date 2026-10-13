@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PublicEdition, PublicProfile } from './types';
+import { PublicEdition, PublicProfile, isComingSoon } from './types';
+import { ComingSoon } from './ComingSoon';
 
 interface LatestRitualWindowProps {
   /** The edition flagged "Latest Ritual" in the CMS, or null when none is. */
@@ -15,10 +16,13 @@ const fmtDate = (v?: string | null) =>
 const fmtDateTime = (v?: string | null) =>
   v ? new Date(v).toLocaleString(undefined, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : null;
 
-function Poster({ url, alt, fallback }: { url?: string | null; alt: string; fallback: string }) {
+function Poster({ url, alt, fallback, credit }: { url?: string | null; alt: string; fallback: string; credit?: string | null }) {
   return (
-    <div className="w-full aspect-[3/4] bg-white/5 rounded border border-white/10 overflow-hidden flex items-center justify-center">
-      {url ? <img src={url} alt={alt} className="w-full h-full object-cover" /> : <span className="text-[10px] text-white/30 tracking-widest">{fallback}</span>}
+    <div className="space-y-1.5">
+      <div className="w-full aspect-[3/4] bg-white/5 rounded border border-white/10 overflow-hidden flex items-center justify-center">
+        {url ? <img src={url} alt={alt} className="w-full h-full object-cover" /> : <span className="text-[10px] text-white/30 tracking-widest">{fallback}</span>}
+      </div>
+      {credit && <span className="block text-center text-[9px] text-white/40">Poster: {credit}</span>}
     </div>
   );
 }
@@ -62,6 +66,7 @@ export function LatestRitualWindow({ edition, profiles = [], onOpenProfile }: La
     );
   }
 
+  const soon = isComingSoon(edition);
   const showWorkshop = !!edition.hasWorkshop && tab === 'workshop';
   const where = [edition.venue, edition.city].filter(Boolean).join(', ');
   const lineup = edition.performers.filter((p) => !/visuals/i.test(profiles.find((x) => x.type === 'PERFORMER' && x.name.toLowerCase() === p.name.toLowerCase())?.role || ''));
@@ -86,7 +91,9 @@ export function LatestRitualWindow({ edition, profiles = [], onOpenProfile }: La
         <p className="text-xs text-white/60">{[fmtDate(edition.eventDate), where].filter(Boolean).join(' · ') || 'DATE TO BE ANNOUNCED'}</p>
       </div>
 
-      {edition.hasWorkshop && (
+      {soon && <ComingSoon edition={edition} />}
+
+      {!soon && edition.hasWorkshop && (
         <div className="flex border border-[#333] rounded overflow-hidden" role="tablist">
           {(
             [
@@ -109,9 +116,9 @@ export function LatestRitualWindow({ edition, profiles = [], onOpenProfile }: La
         </div>
       )}
 
-      {!showWorkshop ? (
+      {soon ? null : !showWorkshop ? (
         <div className="grid grid-cols-1 md:grid-cols-[minmax(0,300px)_1fr] gap-5">
-          <Poster url={edition.posterUrl} alt={`${edition.name} poster`} fallback="POSTER COMING SOON" />
+          <Poster url={edition.posterUrl} alt={`${edition.name} poster`} fallback="POSTER COMING SOON" credit={edition.posterCredits} />
           <div className="space-y-4 min-w-0">
             {edition.description && <p className="text-xs text-white/75 leading-relaxed whitespace-pre-wrap">{edition.description}</p>}
 
@@ -142,7 +149,7 @@ export function LatestRitualWindow({ edition, profiles = [], onOpenProfile }: La
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-[minmax(0,300px)_1fr] gap-5">
-          <Poster url={edition.workshopPosterUrl} alt="Workshop poster" fallback="WORKSHOP POSTER COMING SOON" />
+          <Poster url={edition.workshopPosterUrl} alt="Workshop poster" fallback="WORKSHOP POSTER COMING SOON" credit={edition.posterCredits} />
           <div className="space-y-4 min-w-0">
             <div>
               <span className="text-[10px] text-emerald-400 font-bold tracking-widest block">🔬 WORKSHOP</span>

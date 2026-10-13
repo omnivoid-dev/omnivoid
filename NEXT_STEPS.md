@@ -15,9 +15,16 @@
 
 ## 🎯 Next Order of Business
 
+### Profiles: picture/logo, bio, socials, related links, and SEO — BUILT
+* Performers, collaborators and affiliates now have: a profile picture / logo (WebP-optimised), a bio, **socials** (Website, Instagram, YouTube, plus Spotify, SoundCloud, Bandcamp, Mixcloud, Facebook, X, TikTok; handles or links) and **related links** (label + URL, up to 12). Every URL is validated to http(s) before it is stored or shown.
+* **SEO:** profiles are now real, server-rendered pages: `/performers/[slug]`, `/collaborators/[slug]`, `/affiliates/[slug]`, plus index pages `/performers` etc. Each has a title and meta description from the role and bio, a canonical URL, Open Graph / Twitter images, and schema.org JSON-LD (MusicGroup for performers, Person for collaborators, Organization for affiliates, with `sameAs` from the socials and a breadcrumb). `/sitemap.xml` and `/robots.txt` are generated (admin and API are disallowed). The window links to the page, and `/?section=performers&profile=slug` opens a profile inside the window.
+* **To set in production:** `NEXT_PUBLIC_SITE_URL` (defaults to https://omnivoidlabs.com) so canonical URLs, the sitemap and structured data use the real domain; then submit the sitemap in Google Search Console.
+* The 47K profile still has the mock bio and role; replace them before the pages are indexed.
+
 ### Latest Ritual button and section — BUILT
 * A **LATEST RITUAL** pill above the logo on the main page (as on the original site) opens the shared window on a new **Latest Ritual** section: the poster, the workshop poster and details, and each one's ticket link (tabs LIVE / WORKSHOP), plus the lineup. It shows whichever edition has **Latest Ritual** ticked (Ritual tab of the edition editor); opening it also applies that edition's theme.
-* The **Editions** section (formerly "Rituals") lists every other edition, newest first, so the latest ritual does not appear in it. Untick the flag after the event and the edition drops into Editions automatically. Admin: sidebar "Editions & Rituals" is now "Editions", with a "Latest Ritual" shortcut above it.
+* The **Editions** section (formerly "Rituals") lists every edition, newest first, including the Latest Ritual one, which is also marked in the backend. An upcoming edition with no poster, lineup or description yet shows **COMING SOON** (in both Editions and Latest Ritual). Untick the Latest Ritual flag after the event and it simply stops being featured.
+* **Poster credits:** optional; a toggle on the Ritual tab of the edition editor reveals a credit field, shown under the poster(s) on the site only when switched on. Admin: sidebar "Editions & Rituals" is now "Editions", with a "Latest Ritual" shortcut above it.
 * Still to do: the ticket link, poster and lineup for Edition 010 once available.
 
 ### 0. 🎨 Edition Themes + GLSL Effects — ALL TEN BUILT, NEEDS A VISUAL REVIEW

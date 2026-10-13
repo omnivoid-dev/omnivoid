@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Space_Mono } from 'next/font/google';
 import '@/styles/globals.css';
+import { SITE_URL } from '@/lib/siteUrl';
 
 const spaceMono = Space_Mono({
   weight: ['400', '700'],
@@ -10,6 +11,7 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: 'OMNIVOID LABS - Experimental Sound & Visual Art Platform',
   description: 'Explore the intersection of sound science, technology, and consciousness through immersive audio-visual experiences. Discover research papers, live transmissions, and experimental art at OMNIVOID LABS.',
   keywords: ['experimental music', 'sound art', 'visual art', 'audio-visual', 'technology', 'consciousness', 'research', 'live transmissions', 'electronic music', 'ambient', 'drone', 'glitch', 'noise', 'digital art', 'interactive media'],

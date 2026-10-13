@@ -51,6 +51,8 @@ export async function saveEdition(id: string | null, body: any) {
     isLatestRitual: isLatest,
     ticketUrl: isLatest ? str(body.ticketUrl) : null,
     ticketLabel: isLatest ? str(body.ticketLabel) : null,
+    showPosterCredits: !!body.showPosterCredits,
+    posterCredits: str(body.posterCredits),
     hasWorkshop: !!body.hasWorkshop,
     workshopTitle: str(body.workshopTitle),
     workshopDescription: str(body.workshopDescription),
