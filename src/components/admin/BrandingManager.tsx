@@ -7,12 +7,15 @@ import {
   DEFAULT_LOGO_URL,
   LOGO_ASPECT,
   MENU_ICON_SLOTS,
+  SHARE_DEFAULT_DESCRIPTION,
+  SHARE_DEFAULT_TITLE,
   SiteBranding,
   Tint,
   iconUrlFor,
   resolveBranding,
 } from '@/lib/branding';
-import { uploadToStorage } from '@/lib/uploadClient';
+import { uploadImage, uploadToStorage } from '@/lib/uploadClient';
+import { SITE_URL } from '@/lib/siteUrl';
 
 function TintControls({ tint, onChange }: { tint: Tint; onChange: (t: Tint) => void }) {
   const set = (patch: Partial<Tint>) => onChange({ ...tint, ...patch });
@@ -95,6 +98,7 @@ export default function BrandingManager() {
   const [branding, setBranding] = useState<SiteBranding>(resolveBranding(null));
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
@@ -146,7 +150,7 @@ export default function BrandingManager() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-bold text-white">🎨 BRANDING — LOGO, MENU ICONS & MENU NAMES</h2>
+          <h2 className="text-base font-bold text-white">🎨 BRANDING — LOGO, SHARING, MENU ICONS & MENU NAMES</h2>
           <p className="text-[11px] text-white/40">Upload an SVG (or PNG with transparency) to replace, then tint it with a solid colour or gradient.</p>
         </div>
         <button
@@ -180,6 +184,149 @@ export default function BrandingManager() {
             )}
           </div>
           <TintControls tint={branding.logo.tint} onChange={(tint) => setBranding({ ...branding, logo: { ...branding.logo, tint } })} />
+        </div>
+      </div>
+
+      {/* Link preview: what shows when the site is shared */}
+      <div className="p-5 bg-white/5 border border-white/10 rounded-xl grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div>
+            <span className="text-[10px] font-bold text-[#99ccff] tracking-widest">LINK PREVIEW (WHEN THE SITE IS SHARED)</span>
+            <p className="text-[10px] text-white/40 mt-1">The picture, title and description shown by WhatsApp, Facebook, X, Slack and search results.</p>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-white/40 uppercase mb-1">Title</label>
+            <input
+              value={branding.share.title}
+              onChange={(e) => setBranding({ ...branding, share: { ...branding.share, title: e.target.value } })}
+              placeholder={SHARE_DEFAULT_TITLE}
+              maxLength={90}
+              className="w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none focus:border-[#99ccff]"
+            />
+            <span className="text-[9px] text-white/30">Leave empty for the default. Around 60 characters shows in full.</span>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-white/40 uppercase mb-1">Description</label>
+            <textarea
+              value={branding.share.description}
+              onChange={(e) => setBranding({ ...branding, share: { ...branding.share, description: e.target.value } })}
+              placeholder={SHARE_DEFAULT_DESCRIPTION}
+              rows={3}
+              maxLength={300}
+              className="w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-xs text-white placeholder:text-white/25 outline-none focus:border-[#99ccff]"
+            />
+            <span className="text-[9px] text-white/30">Leave empty for the default. Around 160 characters shows in full.</span>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-white/40 uppercase mb-2">Picture</label>
+            <div className="flex gap-2 mb-3">
+              {(
+                [
+                  ['auto', 'AUTOMATIC (LOGO)'],
+                  ['custom', 'MY OWN PICTURE'],
+                ] as const
+              ).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setBranding({ ...branding, share: { ...branding.share, imageMode: mode } })}
+                  className={`px-3 py-1.5 text-[10px] font-bold tracking-widest rounded border transition-colors ${
+                    branding.share.imageMode === mode
+                      ? 'bg-[#99ccff]/20 text-[#99ccff] border-[#99ccff]/50'
+                      : 'bg-white/5 text-white/50 border-white/10 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {branding.share.imageMode === 'auto' ? (
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-[10px] text-white/50">
+                  BACKGROUND
+                  <input
+                    type="color"
+                    value={branding.share.background}
+                    onChange={(e) => setBranding({ ...branding, share: { ...branding.share, background: e.target.value } })}
+                    className="w-8 h-8 bg-transparent border-0 cursor-pointer"
+                  />
+                  <span className="text-white/70">{branding.share.background}</span>
+                </label>
+                <p className="text-[10px] text-white/40">
+                  Made from the main logo above, including its colour or gradient. Change the logo or tint and the shared picture follows by itself.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#99ccff]/30 text-[#99ccff] bg-[#99ccff]/10 hover:bg-[#99ccff]/20 cursor-pointer whitespace-nowrap">
+                    {shareBusy ? 'UPLOADING...' : '⬆ UPLOAD PICTURE'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      disabled={shareBusy}
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = '';
+                        if (!f) return;
+                        setShareBusy(true);
+                        try {
+                          const up = await uploadImage(f, 'share');
+                          setBranding((b) => ({ ...b, share: { ...b.share, imageMode: 'custom', imageUrl: up.publicUrl } }));
+                        } catch (err: any) {
+                          setMessage({ type: 'error', text: err.message || 'Upload failed' });
+                        } finally {
+                          setShareBusy(false);
+                        }
+                      }}
+                    />
+                  </label>
+                  {branding.share.imageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setBranding({ ...branding, share: { ...branding.share, imageUrl: null, imageMode: 'auto' } })}
+                      className="text-[10px] text-white/50 hover:text-white"
+                    >
+                      REMOVE
+                    </button>
+                  )}
+                </div>
+                <p className="text-[10px] text-white/40">Best at 1200 x 630 (wide). Other sizes are cropped to fit and saved as a JPG.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Preview card, like the one a chat app shows */}
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold text-white/40 tracking-widest">PREVIEW</span>
+          <div className="rounded-lg overflow-hidden border border-white/10 bg-[#1b2b24]">
+            <div
+              className="w-full flex items-center justify-center"
+              style={{ aspectRatio: '1200 / 630', background: branding.share.imageMode === 'custom' && branding.share.imageUrl ? '#000' : branding.share.background }}
+            >
+              {branding.share.imageMode === 'custom' && branding.share.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={branding.share.imageUrl} alt="Share preview" className="w-full h-full object-cover" />
+              ) : (
+                <TintedImage src={logoSrc} tint={branding.logo.tint} aspect={LOGO_ASPECT} alt="Share preview" style={{ height: '63%' }} />
+              )}
+            </div>
+            <div className="p-3 space-y-1">
+              <div className="text-xs font-bold text-white">{branding.share.title.trim() || SHARE_DEFAULT_TITLE}</div>
+              <div className="text-[11px] text-white/60 line-clamp-3">{branding.share.description.trim() || SHARE_DEFAULT_DESCRIPTION}</div>
+              <div className="text-[10px] text-white/40">{SITE_URL.replace(/^https?:\/\//, '')}</div>
+            </div>
+          </div>
+          <p className="text-[10px] text-white/30">
+            After saving, new shares use this within about a minute. Apps like WhatsApp and Facebook remember the old preview for links that were already shared, so
+            those can take a while to update. Facebook has a Sharing Debugger tool that forces a refresh.
+          </p>
         </div>
       </div>
 

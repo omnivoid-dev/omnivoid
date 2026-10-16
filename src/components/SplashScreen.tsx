@@ -19,6 +19,10 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [progress, setProgress] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
   const logIdRef = useRef(0);
+  // The parent passes a new onComplete function on every render; keep the latest in a ref so
+  // the loading sequence below starts exactly once instead of restarting (and doubling its log lines).
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   const addLog = (message: string, progressPercent?: number) => {
     const id = logIdRef.current++;
@@ -32,40 +36,52 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
   };
 
   useEffect(() => {
+    // Stops a sequence that was started by a throwaway mount (React Strict Mode runs effects twice in development)
+    let cancelled = false;
+    setLogs([]);
+    logIdRef.current = 0;
+    const wait = async (ms: number) => {
+      await sleep(ms);
+      return !cancelled;
+    };
+
     // Simulate loading sequence
     const loadingSequence = async () => {
       addLog(`${WORM_ICON} Initializing OMNIVOID...`, 10);
-      await sleep(400);
+      if (!(await wait(400))) return;
       
       addLog(`${WORM_ICON} Loading core systems...`, 20);
-      await sleep(500);
+      if (!(await wait(500))) return;
       
       addLog(`${WORM_ICON} Initializing audio...`, 35);
-      await sleep(400);
+      if (!(await wait(400))) return;
       
       addLog(`${WORM_ICON} Audio system ready...`, 45);
-      await sleep(300);
+      if (!(await wait(300))) return;
       
       addLog(`${WORM_ICON} Loading conundrum content...`, 55);
-      await sleep(500);
+      if (!(await wait(500))) return;
       
       addLog(`${WORM_ICON} Loading visual elements...`, 70);
-      await sleep(400);
+      if (!(await wait(400))) return;
       
       addLog(`${WORM_ICON} Setting up responsive controls...`, 85);
-      await sleep(300);
+      if (!(await wait(300))) return;
       
       addLog(`${WORM_ICON} Welcome to the OMNIVOID LABS Repository`, 100);
-      await sleep(1000);
+      if (!(await wait(1000))) return;
       
       // Fade out
       setIsVisible(false);
-      await sleep(800);
-      onComplete();
+      if (!(await wait(800))) return;
+      onCompleteRef.current();
     };
 
     loadingSequence();
-  }, [onComplete]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -133,4 +149,4 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
       )}
     </AnimatePresence>
   );
-}
+}

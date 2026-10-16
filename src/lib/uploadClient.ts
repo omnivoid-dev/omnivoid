@@ -74,10 +74,10 @@ async function shrinkForUpload(file: File, maxBytes: number): Promise<File> {
  * Upload a raster image through the serverless optimiser (/api/admin/images):
  * the server enforces the size limit and stores an optimised WebP.
  */
-export async function uploadImage(file: File, kind: 'thumbnail' | 'poster' | 'gallery' = 'thumbnail'): Promise<ImageUploadResult> {
-  const limit = kind === 'thumbnail' ? MAX_THUMBNAIL_BYTES : kind === 'gallery' ? MAX_GALLERY_BYTES : MAX_POSTER_BYTES;
+export async function uploadImage(file: File, kind: 'thumbnail' | 'poster' | 'gallery' | 'share' = 'thumbnail'): Promise<ImageUploadResult> {
+  const limit = kind === 'thumbnail' ? MAX_THUMBNAIL_BYTES : kind === 'gallery' || kind === 'share' ? MAX_GALLERY_BYTES : MAX_POSTER_BYTES;
   const originalBytes = file.size;
-  if (kind === 'gallery') file = await shrinkForUpload(file, limit);
+  if (kind === 'gallery' || kind === 'share') file = await shrinkForUpload(file, limit);
   if (file.size > limit) {
     throw new Error(`That image is ${(file.size / 1024 / 1024).toFixed(1)}MB. The limit is ${limit / 1024 / 1024}MB.`);
   }

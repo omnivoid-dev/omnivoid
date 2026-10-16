@@ -10,8 +10,22 @@ export interface Tint {
   angle: number; // degrees, gradient only
 }
 
+/** How the site looks when a link is shared (WhatsApp, Facebook, X, Google...). */
+export interface ShareSettings {
+  /** Empty = the default title below */
+  title: string;
+  /** Empty = the default description below */
+  description: string;
+  /** auto = the logo (with its tint) on a plain background, made fresh whenever the logo changes; custom = an uploaded picture */
+  imageMode: 'auto' | 'custom';
+  imageUrl: string | null;
+  /** Background colour of the automatic image */
+  background: string;
+}
+
 export interface SiteBranding {
   logo: { url: string | null; tint: Tint };
+  share: ShareSettings;
   /** Per-section icon overrides (section id -> image URL). Missing = built-in icon. */
   icons: Record<string, string>;
   /** One tint applied to every menu icon. */
@@ -27,8 +41,15 @@ export const LOGO_ASPECT = 878.75 / 739.99;
 
 export const DEFAULT_TINT: Tint = { mode: 'none', color: '#99ccff', color2: '#336699', angle: 135 };
 
+export const SHARE_DEFAULT_TITLE = 'OMNIVOID LABS - Experimental Sound & Visual Art Platform';
+export const SHARE_DEFAULT_DESCRIPTION =
+  'Explore the intersection of sound science, technology, and consciousness through immersive audio-visual experiences. Discover research papers, live transmissions, and experimental art at OMNIVOID LABS.';
+
+export const DEFAULT_SHARE: ShareSettings = { title: '', description: '', imageMode: 'auto', imageUrl: null, background: '#050505' };
+
 export const DEFAULT_BRANDING: SiteBranding = {
   logo: { url: null, tint: DEFAULT_TINT },
+  share: DEFAULT_SHARE,
   icons: {},
   iconTint: DEFAULT_TINT,
   labels: {},
@@ -57,6 +78,13 @@ export function resolveBranding(stored: unknown): SiteBranding {
   const s = (stored && typeof stored === 'object' ? stored : {}) as Partial<SiteBranding>;
   return {
     logo: { url: s.logo?.url || null, tint: tintDefaults(s.logo?.tint) },
+    share: {
+      title: typeof s.share?.title === 'string' ? s.share.title : '',
+      description: typeof s.share?.description === 'string' ? s.share.description : '',
+      imageMode: s.share?.imageMode === 'custom' && s.share.imageUrl ? 'custom' : 'auto',
+      imageUrl: s.share?.imageUrl || null,
+      background: /^#[0-9a-fA-F]{6}$/.test(s.share?.background || '') ? (s.share!.background as string) : DEFAULT_SHARE.background,
+    },
     icons: s.icons || {},
     iconTint: tintDefaults(s.iconTint),
     labels: s.labels || {},

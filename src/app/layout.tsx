@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Space_Mono } from 'next/font/google';
 import '@/styles/globals.css';
 import { SITE_URL } from '@/lib/siteUrl';
+import { prisma } from '@/lib/prisma';
+import { BRANDING_KEY, SHARE_DEFAULT_DESCRIPTION, SHARE_DEFAULT_TITLE, resolveBranding } from '@/lib/branding';
 
 const spaceMono = Space_Mono({
   weight: ['400', '700'],
@@ -10,47 +12,60 @@ const spaceMono = Space_Mono({
   variable: '--font-space-mono',
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: 'OMNIVOID LABS - Experimental Sound & Visual Art Platform',
-  description: 'Explore the intersection of sound science, technology, and consciousness through immersive audio-visual experiences. Discover research papers, live transmissions, and experimental art at OMNIVOID LABS.',
-  keywords: ['experimental music', 'sound art', 'visual art', 'audio-visual', 'technology', 'consciousness', 'research', 'live transmissions', 'electronic music', 'ambient', 'drone', 'glitch', 'noise', 'digital art', 'interactive media'],
-  authors: [{ name: 'OMNIVOID LABS' }],
-  openGraph: {
-    type: 'website',
-    url: `${SITE_URL}/`,
-    title: 'OMNIVOID LABS - Experimental Sound & Visual Art Platform',
-    description: 'Explore the intersection of sound science, technology, and consciousness through immersive audio-visual experiences. Discover research papers, live transmissions, and experimental art.',
-    images: [{ url: '/share-image.png', width: 1200, height: 630, alt: 'OMNIVOID LABS' }],
-    siteName: 'OMNIVOID LABS',
-    locale: 'en_US',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'OMNIVOID LABS - Experimental Sound & Visual Art Platform',
-    description: 'Explore the intersection of sound science, technology, and consciousness through immersive audio-visual experiences.',
-    images: ['/share-image.png'],
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-  icons: {
-    icon: [
-      { url: '/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/favicon.ico' },
-    ],
-    shortcut: '/favicon.ico',
-    apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180' },
-    ],
-  },
-  manifest: '/site.webmanifest',
-  appleWebApp: {
-    title: 'Omnivoid',
-  },
-};
+// Metadata is built from the admin's share settings; refreshed at most once a minute
+export const revalidate = 60;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const row = await prisma.siteSettings.findUnique({ where: { key: BRANDING_KEY } }).catch(() => null);
+  const { share } = resolveBranding(row?.value);
+  const title = share.title.trim() || SHARE_DEFAULT_TITLE;
+  const description = share.description.trim() || SHARE_DEFAULT_DESCRIPTION;
+  // The version in the URL makes platforms fetch a new picture after the logo or settings change
+  const image =
+    share.imageMode === 'custom' && share.imageUrl
+      ? share.imageUrl
+      : `/api/share-image?v=${row?.updatedAt ? row.updatedAt.getTime() : 0}`;
+
+  return {
+    metadataBase: new URL(SITE_URL),
+    title,
+    description,
+    keywords: ['experimental music', 'sound art', 'visual art', 'audio-visual', 'technology', 'consciousness', 'research', 'live transmissions', 'electronic music', 'ambient', 'drone', 'glitch', 'noise', 'digital art', 'interactive media'],
+    authors: [{ name: 'OMNIVOID LABS' }],
+    openGraph: {
+      type: 'website',
+      url: `${SITE_URL}/`,
+      title,
+      description,
+      images: [{ url: image, width: 1200, height: 630, alt: 'OMNIVOID LABS' }],
+      siteName: 'OMNIVOID LABS',
+      locale: 'en_US',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [image],
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+    icons: {
+      icon: [
+        { url: '/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
+        { url: '/favicon.svg', type: 'image/svg+xml' },
+        { url: '/favicon.ico' },
+      ],
+      shortcut: '/favicon.ico',
+      apple: [{ url: '/apple-touch-icon.png', sizes: '180x180' }],
+    },
+    manifest: '/site.webmanifest',
+    appleWebApp: {
+      title: 'Omnivoid',
+    },
+  };
+}
 
 export default function RootLayout({
   children,
