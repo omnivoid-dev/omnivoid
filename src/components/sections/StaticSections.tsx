@@ -1,5 +1,9 @@
 'use client';
 
+import { useMemo, useState } from 'react';
+import { ListControls } from '@/components/ui/ListControls';
+import { matchesSearch, sortList, toTime, type SortMode } from '@/lib/listView';
+
 /** Research, Conundrum, Contact and Gallery, as React (replacing the old HTML-string windows). */
 
 interface ResearchDoc {
@@ -69,21 +73,85 @@ export function ContactSection({ info }: { info: { contactEmail: string; submiss
   );
 }
 
-export function GallerySection({ items }: { items: { id: string; title: string; path: string }[] }) {
+export interface GalleryItem {
+  id: string;
+  title: string;
+  url: string;
+  editionId?: string | null;
+  editionName?: string | null;
+  /** Event date of the edition (ISO), used for newest/oldest */
+  eventDate?: string | null;
+  performerName?: string | null;
+}
+
+export function GallerySection({ items, editions }: { items: GalleryItem[]; editions: { id: string; name: string }[] }) {
+  const [edition, setEdition] = useState('');
+  const [performer, setPerformer] = useState('');
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<SortMode>('date-desc');
+  const [open, setOpen] = useState<GalleryItem | null>(null);
+
+  const performers = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const i of items) if (i.performerName) names.set(i.performerName.trim().toLowerCase(), i.performerName.trim());
+    return [...names.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ value, label }));
+  }, [items]);
+
+  const editionOptions = useMemo(() => {
+    const used = new Set(items.map((i) => i.editionId).filter(Boolean));
+    return editions.filter((e) => used.has(e.id)).map((e) => ({ value: e.id, label: e.name }));
+  }, [items, editions]);
+
+  const shown = useMemo(() => {
+    const filtered = items.filter(
+      (i) =>
+        (!edition || i.editionId === edition) &&
+        (!performer || i.performerName?.trim().toLowerCase() === performer) &&
+        matchesSearch(search, i.title, i.editionName, i.performerName)
+    );
+    return sortList(filtered, sort, (i) => i.title, (i) => toTime(i.eventDate));
+  }, [items, edition, performer, search, sort]);
+
   return (
     <div className="font-mono space-y-4">
       <h3 className="text-xs font-bold text-white tracking-widest border-b border-[#99ccff]/30 pb-3">🖼️ GALLERY</h3>
-      {items.length === 0 && <p className="text-white/40 text-xs">No images yet.</p>}
+      <ListControls
+        search={search}
+        onSearch={setSearch}
+        editions={editionOptions}
+        edition={edition}
+        onEdition={setEdition}
+        performers={performers}
+        performer={performer}
+        onPerformer={setPerformer}
+        sort={sort}
+        onSort={setSort}
+        shown={shown.length}
+        total={items.length}
+      />
+      {shown.length === 0 && <p className="text-white/40 text-xs">{items.length === 0 ? 'No images yet.' : 'No images match.'}</p>}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {items.map((img) => (
-          <a key={img.id} href={img.path} target="_blank" rel="noopener noreferrer" className="group block">
+        {shown.map((img) => (
+          <button key={img.id} type="button" onClick={() => setOpen(img)} className="group block text-left">
             <div className="aspect-square bg-white/5 border border-white/10 rounded overflow-hidden group-hover:border-[#99ccff]/50 transition-all">
-              <img src={img.path} alt={img.title} loading="lazy" className="w-full h-full object-cover" />
+              <img src={img.url} alt={img.title} loading="lazy" className="w-full h-full object-cover" />
             </div>
             <span className="block mt-1 text-[9px] text-white/40 truncate group-hover:text-[#99ccff]">{img.title}</span>
-          </a>
+            {(img.editionName || img.performerName) && (
+              <span className="block text-[8px] text-white/25 truncate">{[img.editionName, img.performerName].filter(Boolean).join(' · ')}</span>
+            )}
+          </button>
         ))}
       </div>
+      {open && (
+        <div className="fixed inset-0 z-[300] bg-black/90 flex flex-col items-center justify-center p-4 cursor-zoom-out" onClick={() => setOpen(null)}>
+          <img src={open.url} alt={open.title} className="max-w-full max-h-[85vh] object-contain" />
+          <p className="mt-3 text-xs text-white/70">
+            {open.title}
+            {(open.editionName || open.performerName) && <span className="text-white/40"> · {[open.editionName, open.performerName].filter(Boolean).join(' · ')}</span>}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

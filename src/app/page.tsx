@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WindowShell, type ShellSection } from '@/components/shell/WindowShell';
-import { ResearchSection, ConundrumSection, ContactSection, GallerySection } from '@/components/sections/StaticSections';
+import { ResearchSection, ConundrumSection, ContactSection, GallerySection, type GalleryItem } from '@/components/sections/StaticSections';
 import { ProfilesSection } from '@/components/sections/ProfilesSection';
 import { SplashScreen } from '@/components/SplashScreen';
 import { StartScreen } from '@/components/StartScreen';
@@ -216,6 +216,25 @@ export default function Home() {
 
   // The edition flagged "Latest Ritual" also has its own section; the Editions list holds every edition, newest first
   const allEditions = [...(content?.editions || [])].sort((a, b) => b.sortOrder - a.sortOrder);
+
+  // Gallery: photos uploaded per edition (tagged with edition and performer) plus the legacy folder images
+  const galleryItems: GalleryItem[] = [
+    ...(content?.resources || [])
+      .filter((r) => r.type === 'gallery' && r.path)
+      .map((r) => {
+        const ed = content?.editions.find((e) => e.id === r.editionId);
+        return {
+          id: r.id,
+          title: r.title,
+          url: r.path,
+          editionId: r.editionId,
+          editionName: ed?.name ?? null,
+          eventDate: ed?.eventDate ?? null,
+          performerName: ed?.performers.find((p) => p.id === r.performerId)?.name ?? null,
+        };
+      }),
+    ...(content?.gallery || []).filter((g) => g.type === 'image').map((g) => ({ id: g.id, title: g.title, url: g.path })),
+  ];
   const latestEdition = allEditions.find((e) => e.isLatestRitual) ?? null;
 
   // Sections that currently have something to show
@@ -317,7 +336,7 @@ export default function Home() {
       case 'research':
         return <ResearchSection documents={content.documents.filter((d) => d.type === 'RESEARCH')} />;
       case 'gallery':
-        return <GallerySection items={content.gallery.filter((g) => g.type === 'image')} />;
+        return <GallerySection items={galleryItems} editions={allEditions.map((e) => ({ id: e.id, name: e.name }))} />;
       case 'conundrum':
         return <ConundrumSection text={content.conundrumText || 'OMNIVOID is an autonomous sonic & visual research lab.'} />;
       case 'contact':

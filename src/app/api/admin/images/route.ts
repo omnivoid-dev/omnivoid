@@ -23,6 +23,7 @@ const MB = 1024 * 1024;
 const KINDS = {
   thumbnail: { folder: 'thumbnails', maxBytes: 3 * MB, maxSide: 800, quality: 80 },
   poster: { folder: 'posters', maxBytes: 4 * MB, maxSide: 1600, quality: 82 },
+  gallery: { folder: 'edition-gallery', maxBytes: 4 * MB, maxSide: 2000, quality: 80 },
 } as const;
 
 const ALLOWED_FORMATS = ['jpeg', 'png', 'webp', 'gif', 'avif', 'tiff', 'heif'];

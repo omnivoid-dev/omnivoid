@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import ImageUploadField from './ImageUploadField';
+import EditionGalleryTab from './EditionGalleryTab';
 import { NEUTRAL_THEME, THEME_PRESETS, isHex, presetById, resolveTheme, type ThemePalette } from '@/lib/themes';
 import { EffectPreview } from '@/components/fx/EffectPreview';
 import { ExportVideoButton } from '@/components/fx/ExportVideoButton';
@@ -29,13 +30,14 @@ interface EditionEditorModalProps {
   onSuccess: () => void;
 }
 
-type TabId = 'details' | 'ritual' | 'workshop' | 'theme' | 'performers' | 'transmissions';
+type TabId = 'details' | 'ritual' | 'workshop' | 'theme' | 'gallery' | 'performers' | 'transmissions';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'details', label: 'DETAILS' },
   { id: 'ritual', label: 'RITUAL' },
   { id: 'workshop', label: 'WORKSHOP' },
   { id: 'theme', label: 'THEME' },
+  { id: 'gallery', label: 'GALLERY' },
   { id: 'performers', label: 'PERFORMERS' },
   { id: 'transmissions', label: 'TRANSMISSIONS' },
 ];
@@ -506,6 +508,17 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
               </div>
             </div>
           )}
+
+          {/* ---------------- GALLERY ---------------- */}
+          {tab === 'gallery' &&
+            (initialData?.id ? (
+              <EditionGalleryTab
+                editionId={initialData.id}
+                performers={performers.filter((p) => !p.key.startsWith('new-') && p.name.trim()).map((p) => ({ id: p.key, name: p.name }))}
+              />
+            ) : (
+              <p className="text-xs text-white/40">Save the edition first, then come back to add photos.</p>
+            ))}
 
           {/* ---------------- PERFORMERS ---------------- */}
           {tab === 'performers' && (

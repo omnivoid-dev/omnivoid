@@ -14,7 +14,7 @@ import { prisma } from '@/lib/prisma';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const BUCKET = 'media';
-export const MANAGED_FOLDERS = ['thumbnails', 'posters', 'research', 'audio', 'branding'];
+export const MANAGED_FOLDERS = ['thumbnails', 'posters', 'research', 'audio', 'branding', 'edition-gallery'];
 export const GRACE_MS = 24 * 60 * 60 * 1000;
 
 const marker = `/object/public/${BUCKET}/`;
