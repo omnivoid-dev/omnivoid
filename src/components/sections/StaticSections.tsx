@@ -11,7 +11,14 @@ interface ResearchDoc {
   title: string;
   excerpt?: string;
   fileUrl?: string;
+  fileName?: string | null;
   thumbnailUrl?: string;
+}
+
+/** Supabase serves a file as a download (not in the browser viewer) when given ?download=<name>. */
+function downloadUrl(doc: ResearchDoc): string {
+  const name = doc.fileName || `${doc.title}.pdf`;
+  return `${doc.fileUrl}${doc.fileUrl!.includes('?') ? '&' : '?'}download=${encodeURIComponent(name)}`;
 }
 
 export function ResearchSection({ documents }: { documents: ResearchDoc[] }) {
@@ -29,9 +36,14 @@ export function ResearchSection({ documents }: { documents: ResearchDoc[] }) {
             </div>
             <p className="text-[10px] text-white/50 mb-3 whitespace-pre-wrap">{doc.excerpt || 'Research artifact from the OMNIVOID repository.'}</p>
             {doc.fileUrl && (
-              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-block text-[10px] px-3 py-1 bg-[#99ccff] text-[#050505] font-bold rounded hover:bg-[#7ab8e6]">
-                DOWNLOAD PDF ↗
-              </a>
+              <div className="flex flex-wrap gap-2">
+                <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-block text-[10px] px-3 py-1 border border-[#99ccff]/50 text-[#99ccff] font-bold rounded hover:bg-[#99ccff]/10">
+                  VIEW ↗
+                </a>
+                <a href={downloadUrl(doc)} download={doc.fileName || undefined} className="inline-block text-[10px] px-3 py-1 bg-[#99ccff] text-[#050505] font-bold rounded hover:bg-[#7ab8e6]">
+                  DOWNLOAD PDF ⬇
+                </a>
+              </div>
             )}
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
+import InlineRename from '@/components/admin/InlineRename';
 import { ListControls } from '@/components/ui/ListControls';
 import { matchesSearch, nameOptions, sameName, sortList, toTime, type SortMode } from '@/lib/listView';
 import EntityForm, { FieldDefinition } from '@/components/admin/EntityForm';
@@ -96,6 +97,19 @@ export default function DocumentsPage() {
     return sortList(list, sort, (i) => i.title, (i) => (i.editionId ? editionDates.get(i.editionId) : null) ?? toTime(i.createdAt));
   }, [documents, editionFilter, typeFilter, search, sort, editionDates]);
 
+  const rename = async (item: Document, title: string) => {
+    setDocuments((list) => list.map((x) => (x.id === item.id ? { ...x, title } : x)));
+    const res = await fetch(`/api/admin/documents/${item.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    if (!(await res.json().catch(() => ({}))).success) {
+      alert('Could not rename. Please try again.');
+      fetchData();
+    }
+  };
+
   const handleDelete = async (item: Document) => {
     if (!confirm(`Are you sure you want to delete "${item.title}"?`)) return;
 
@@ -169,7 +183,7 @@ export default function DocumentsPage() {
         data={filtered}
         isLoading={isLoading}
         columns={[
-          { header: 'Title', accessor: 'title' },
+          { header: 'Title', accessor: (item) => <InlineRename value={item.title} onSave={(t) => rename(item, t)} /> },
           { header: 'Type', accessor: 'type' },
           { header: 'Status', accessor: (item) => (
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${item.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-white/40'}`}>

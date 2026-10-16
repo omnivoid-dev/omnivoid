@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
+import InlineRename from '@/components/admin/InlineRename';
 import { ListControls } from '@/components/ui/ListControls';
 import { matchesSearch, nameOptions, sameName, sortList, toTime, type SortMode } from '@/lib/listView';
 import Mp3UploadModal from '@/components/admin/Mp3UploadModal';
@@ -48,6 +49,19 @@ export default function AudioPage() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const rename = async (item: AudioResource, title: string) => {
+    setTracks((list) => list.map((x) => (x.id === item.id ? { ...x, title } : x)));
+    const res = await fetch(`/api/admin/resources/${item.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    if (!(await res.json().catch(() => ({}))).success) {
+      alert('Could not rename. Please try again.');
+      fetchData();
     }
   };
 
@@ -113,7 +127,7 @@ export default function AudioPage() {
         isLoading={isLoading}
         emptyMessage="No audio tracks yet."
         columns={[
-          { header: 'Track', accessor: 'title' },
+          { header: 'Track', accessor: (item) => <InlineRename value={item.title} onSave={(t) => rename(item, t)} /> },
           { header: 'Performer', accessor: (t) => <span className="text-xs text-white/60">{t.performer?.name || t.metadata?.artist || '—'}</span> },
           { header: 'Edition', accessor: (t) => <span className="text-xs text-white/50">{t.edition?.name || '—'}</span> },
           { header: 'Length', accessor: (t) => <span className="text-xs text-white/50 font-mono">{fmt(t.metadata?.duration)}</span> },

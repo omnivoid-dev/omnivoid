@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
+import InlineRename from '@/components/admin/InlineRename';
 import { ListControls } from '@/components/ui/ListControls';
 import { matchesSearch, nameOptions, sameName, sortList, toTime, type SortMode } from '@/lib/listView';
 import ResearchUploadModal from '@/components/admin/ResearchUploadModal';
@@ -74,8 +75,7 @@ export default function ResearchPage() {
   }, [docs, editionFilter, search, sort, editionDates]);
 
   const rename = async (doc: ResearchDoc, title: string) => {
-    const next = title.trim();
-    if (!next || next === doc.title) return;
+    const next = title;
     setDocs((d) => d.map((x) => (x.id === doc.id ? { ...x, title: next } : x)));
     const res = await fetch(`/api/admin/documents/${doc.id}`, {
       method: 'PUT',
@@ -132,22 +132,7 @@ export default function ResearchPage() {
         columns={[
           {
             header: 'Display name',
-            accessor: (d) => (
-              <input
-                key={d.id + d.title}
-                defaultValue={d.title}
-                title="Click to rename; press Enter or click away to save"
-                onBlur={(e) => rename(d, e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                  if (e.key === 'Escape') {
-                    e.currentTarget.value = d.title;
-                    e.currentTarget.blur();
-                  }
-                }}
-                className="w-full min-w-[220px] bg-transparent border border-transparent hover:border-[#333] focus:border-[#99ccff]/50 focus:bg-[#111] rounded px-2 py-1 text-sm text-white outline-none"
-              />
-            ),
+            accessor: (d) => <InlineRename value={d.title} onSave={(t) => rename(d, t)} />,
           },
           { header: 'File', accessor: (d) => <span className="text-xs text-white/50 font-mono">{d.fileName || '—'}</span> },
           { header: 'Edition', accessor: (d) => <span className="text-xs text-white/50">{d.edition?.name || '—'}</span> },

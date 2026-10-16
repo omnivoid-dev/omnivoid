@@ -172,6 +172,7 @@ export async function GET(request: NextRequest) {
       type: doc.type,
       excerpt: doc.excerpt,
       fileUrl: doc.fileUrl,
+      fileName: doc.fileName,
       thumbnailUrl: doc.thumbnailUrl,
       editionId: doc.editionId,
     }));
