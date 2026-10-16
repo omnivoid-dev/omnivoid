@@ -113,25 +113,27 @@ export async function saveEdition(id: string | null, body: any) {
       }
     }
 
-    for (const [i, t] of transmissions.entries()) {
-      const youtubeId = getYouTubeId(t.url);
-      await tx.transmission.create({
-        data: {
-          editionId: edition.id,
-          performerId: t.performerKey ? idByKey.get(t.performerKey) ?? null : null,
-          title: t.title?.trim() || t.originalTitle?.trim() || 'YouTube Transmission',
-          originalTitle: str(t.originalTitle),
-          url: t.url.trim(),
-          youtubeId,
-          thumbnailUrl: youtubeThumbnail(youtubeId),
-          kind: t.kind || 'SET',
-          sortOrder: i,
-        },
+    if (transmissions.length) {
+      await tx.transmission.createMany({
+        data: transmissions.map((t, i) => {
+          const youtubeId = getYouTubeId(t.url);
+          return {
+            editionId: edition.id,
+            performerId: t.performerKey ? idByKey.get(t.performerKey) ?? null : null,
+            title: t.title?.trim() || t.originalTitle?.trim() || 'YouTube Transmission',
+            originalTitle: str(t.originalTitle),
+            url: t.url.trim(),
+            youtubeId,
+            thumbnailUrl: youtubeThumbnail(youtubeId),
+            kind: t.kind || 'SET',
+            sortOrder: i,
+          };
+        }),
       });
     }
 
     return tx.edition.findUniqueOrThrow({ where: { id: edition.id }, include: editionInclude });
-  });
+  }, { maxWait: 10_000, timeout: 60_000 }); // default 5s is too tight over the remote pooler
 
   // Replaced or removed posters are purged once nothing references them
   await deleteIfUnreferenced([before?.posterUrl, before?.workshopPosterUrl]);
