@@ -9,6 +9,9 @@ import { BRANDING_KEY, resolveBranding } from '@/lib/branding';
 import { readdir } from 'fs/promises';
 import { join } from 'path';
 
+// Public data must reflect admin edits immediately, never a snapshot taken at build time
+export const dynamic = 'force-dynamic';
+
 async function scanDirectory(dirPath: string, baseUrl: string): Promise<{ id: string; title: string; path: string; type: string }[]> {
   try {
     const entries = await readdir(dirPath, { withFileTypes: true });
@@ -108,7 +111,7 @@ export async function GET(request: NextRequest) {
       .findMany({
         where: { isActive: true },
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
-        include: { edition: { select: { name: true } }, performer: { select: { name: true } } },
+        include: { edition: { select: { name: true, eventDate: true } }, performer: { select: { name: true } } },
       })
       .catch(() => []);
 
@@ -189,6 +192,8 @@ export async function GET(request: NextRequest) {
           author: r.author,
           editionName: r.edition?.name ?? null,
           performerName: r.performer?.name ?? null,
+          // Sort date: the edition's event date, else when the show was added
+          date: (r.edition?.eventDate ?? r.createdAt)?.toISOString() ?? null,
         })),
         profiles: profiles.map(p => ({
           id: p.id,

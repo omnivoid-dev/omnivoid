@@ -38,3 +38,15 @@ export function matchesSearch(q: string, ...fields: (string | null | undefined)[
   if (!needle) return true;
   return fields.some((f) => f?.toLowerCase().includes(needle));
 }
+
+/** Distinct names -> select options (value is lowercased so "DJ Foo" and "dj foo" are one performer). */
+export function nameOptions(names: (string | null | undefined)[]): { value: string; label: string }[] {
+  const seen = new Map<string, string>();
+  for (const n of names) {
+    const label = n?.trim();
+    if (label) seen.set(label.toLowerCase(), seen.get(label.toLowerCase()) ?? label);
+  }
+  return [...seen.entries()].sort((a, b) => collator.compare(a[1], b[1])).map(([value, label]) => ({ value, label }));
+}
+
+export const sameName = (a: string | null | undefined, key: string) => (a ?? '').trim().toLowerCase() === key;

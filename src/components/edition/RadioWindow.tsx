@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { mixcloudEmbedSrc } from '@/lib/mixcloud';
+import { ListControls } from '@/components/ui/ListControls';
+import { matchesSearch, nameOptions, sameName, sortList, toTime, type SortMode } from '@/lib/listView';
 
 export interface PublicRadioShow {
   id: string;
@@ -11,6 +13,8 @@ export interface PublicRadioShow {
   author?: string | null;
   editionName?: string | null;
   performerName?: string | null;
+  /** ISO date used for newest/oldest */
+  date?: string | null;
 }
 
 interface RadioWindowProps {
@@ -20,14 +24,25 @@ interface RadioWindowProps {
 export function RadioWindow({ shows }: RadioWindowProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [edition, setEdition] = useState('');
+  const [performer, setPerformer] = useState('');
+  const [sort, setSort] = useState<SortMode>('date-desc');
 
   const active = shows.find((s) => s.id === activeId) || null;
   const activeIndex = active ? shows.findIndex((s) => s.id === active.id) : -1;
 
+  const editionOptions = useMemo(() => nameOptions(shows.map((s) => s.editionName)).map((o) => ({ value: o.value, label: o.label })), [shows]);
+  const performerOptions = useMemo(() => nameOptions(shows.map((s) => s.performerName)), [shows]);
+
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return shows.filter((s) => !q || s.title.toLowerCase().includes(q) || s.performerName?.toLowerCase().includes(q) || s.editionName?.toLowerCase().includes(q));
-  }, [shows, query]);
+    const list = shows.filter(
+      (s) =>
+        (!edition || sameName(s.editionName, edition)) &&
+        (!performer || sameName(s.performerName, performer)) &&
+        matchesSearch(query, s.title, s.performerName, s.editionName)
+    );
+    return sortList(list, sort, (s) => s.title, (s) => toTime(s.date));
+  }, [shows, query, edition, performer, sort]);
 
   if (shows.length === 0) return <p className="font-mono text-xs text-white/40">No radio shows published yet.</p>;
 
@@ -70,11 +85,19 @@ export function RadioWindow({ shows }: RadioWindowProps) {
         )}
       </div>
 
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search shows or performers..."
-        className="w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-xs outline-none focus:border-[#99ccff]"
+      <ListControls
+        search={query}
+        onSearch={setQuery}
+        editions={editionOptions}
+        edition={edition}
+        onEdition={setEdition}
+        performers={performerOptions}
+        performer={performer}
+        onPerformer={setPerformer}
+        sort={sort}
+        onSort={setSort}
+        shown={filtered.length}
+        total={shows.length}
       />
 
       {/* Show list */}

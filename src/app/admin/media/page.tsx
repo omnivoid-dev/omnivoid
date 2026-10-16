@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
+import { ListControls } from '@/components/ui/ListControls';
+import { matchesSearch, nameOptions, sameName, sortList, toTime, type SortMode } from '@/lib/listView';
 import EntityForm, { FieldDefinition } from '@/components/admin/EntityForm';
 
 interface Resource {
   id: string;
+  createdAt?: string;
   title: string;
   type: string;
   isActive: boolean;
@@ -20,6 +23,11 @@ export default function ResourcesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<Resource | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editionDates, setEditionDates] = useState<Map<string, number | null>>(new Map());
+  const [search, setSearch] = useState('');
+  const [editionFilter, setEditionFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [sort, setSort] = useState<SortMode>('date-desc');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -39,6 +47,7 @@ export default function ResourcesPage() {
       if (rData.success) setResources(rData.data.filter((r: Resource) => r.type !== 'AUDIO'));
       if (eData.success) {
         setEditions(eData.data.map((e: any) => ({ label: e.name, value: e.id })));
+        setEditionDates(new Map(eData.data.map((e: any) => [e.id, toTime(e.eventDate)])));
       }
     } catch (err) {
       console.error('Failed to fetch data:', err);
@@ -72,6 +81,21 @@ export default function ResourcesPage() {
       setIsSaving(false);
     }
   };
+
+  const editionOptions = useMemo(
+    () => sortList(editions, 'date-desc', (e) => e.label, (e) => editionDates.get(e.value) ?? null),
+    [editions, editionDates]
+  );
+  const typeOptions = useMemo(() => nameOptions(resources.map((i) => i.type)).map((o) => ({ value: o.label, label: o.label })), [resources]);
+  const filtered = useMemo(() => {
+    const list = resources.filter(
+      (i) =>
+        (!editionFilter || i.editionId === editionFilter) &&
+        (!typeFilter || i.type === typeFilter) &&
+        matchesSearch(search, i.title)
+    );
+    return sortList(list, sort, (i) => i.title, (i) => (i.editionId ? editionDates.get(i.editionId) : null) ?? toTime(i.createdAt));
+  }, [resources, editionFilter, typeFilter, search, sort, editionDates]);
 
   const handleDelete = async (item: Resource) => {
     if (!confirm(`Are you sure you want to delete "${item.title}"?`)) return;
@@ -131,8 +155,22 @@ export default function ResourcesPage() {
         </div>
       </div>
 
+      <ListControls
+        className="mb-4"
+        search={search}
+        onSearch={setSearch}
+        editions={editionOptions}
+        edition={editionFilter}
+        onEdition={setEditionFilter}
+        extra={{ label: 'All types', options: typeOptions, value: typeFilter, onChange: setTypeFilter }}
+        sort={sort}
+        onSort={setSort}
+        shown={filtered.length}
+        total={resources.length}
+      />
+
       <DataTable
-        data={resources}
+        data={filtered}
         isLoading={isLoading}
         columns={[
           { header: 'Title', accessor: 'title' },

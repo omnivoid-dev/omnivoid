@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
+import { ListControls } from '@/components/ui/ListControls';
+import { matchesSearch, nameOptions, sameName, sortList, toTime, type SortMode } from '@/lib/listView';
 import ResearchUploadModal from '@/components/admin/ResearchUploadModal';
 
 interface ResearchDoc {
   id: string;
+  createdAt?: string;
   title: string;
   excerpt?: string;
   fileUrl?: string;
@@ -23,6 +26,11 @@ export default function ResearchPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editing, setEditing] = useState<ResearchDoc | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [editionDates, setEditionDates] = useState<Map<string, number | null>>(new Map());
+  const [search, setSearch] = useState('');
+  const [editionFilter, setEditionFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [sort, setSort] = useState<SortMode>('date-desc');
 
   useEffect(() => {
     fetchData();
@@ -34,7 +42,10 @@ export default function ResearchPage() {
       const [dRes, eRes] = await Promise.all([fetch('/api/admin/documents?type=RESEARCH'), fetch('/api/admin/editions')]);
       const [d, e] = await Promise.all([dRes.json(), eRes.json()]);
       if (d.success) setDocs(d.data);
-      if (e.success) setEditions(e.data.map((ed: any) => ({ label: ed.name, value: ed.id })));
+      if (e.success) {
+        setEditions(e.data.map((ed: any) => ({ label: ed.name, value: ed.id })));
+        setEditionDates(new Map(e.data.map((ed: any) => [ed.id, toTime(ed.eventDate)])));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -48,6 +59,19 @@ export default function ResearchPage() {
     });
     fetchData();
   };
+
+  const editionOptions = useMemo(
+    () => sortList(editions, 'date-desc', (e) => e.label, (e) => editionDates.get(e.value) ?? null),
+    [editions, editionDates]
+  );
+  const filtered = useMemo(() => {
+    const list = docs.filter(
+      (i) =>
+        (!editionFilter || i.editionId === editionFilter) &&
+        matchesSearch(search, i.title)
+    );
+    return sortList(list, sort, (i) => i.title, (i) => (i.editionId ? editionDates.get(i.editionId) : null) ?? toTime(i.createdAt));
+  }, [docs, editionFilter, search, sort, editionDates]);
 
   const handleDelete = async (doc: ResearchDoc) => {
     if (!confirm(`Delete "${doc.title}"?`)) return;
@@ -73,8 +97,21 @@ export default function ResearchPage() {
         </button>
       </div>
 
+      <ListControls
+        className="mb-4"
+        search={search}
+        onSearch={setSearch}
+        editions={editionOptions}
+        edition={editionFilter}
+        onEdition={setEditionFilter}
+        sort={sort}
+        onSort={setSort}
+        shown={filtered.length}
+        total={docs.length}
+      />
+
       <DataTable
-        data={docs}
+        data={filtered}
         isLoading={isLoading}
         emptyMessage="No research papers yet."
         columns={[

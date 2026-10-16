@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
+import { ListControls } from '@/components/ui/ListControls';
+import { matchesSearch, nameOptions, sameName, sortList, toTime, type SortMode } from '@/lib/listView';
 
 interface Transmission {
   id: string;
@@ -23,6 +25,7 @@ interface Transmission {
 interface Edition {
   id: string;
   name: string;
+  eventDate?: string | null;
   performers: { id: string; name: string }[];
 }
 
@@ -37,6 +40,8 @@ export default function TransmissionsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editionFilter, setEditionFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [performerFilter, setPerformerFilter] = useState('');
+  const [sort, setSort] = useState<SortMode>('date-desc');
 
   useEffect(() => {
     fetchData();
@@ -54,14 +59,22 @@ export default function TransmissionsPage() {
     }
   };
 
+  const dateByEdition = useMemo(() => new Map(editions.map((e) => [e.id, toTime(e.eventDate)])), [editions]);
+  const editionOptions = useMemo(
+    () => sortList(editions, 'date-desc', (e) => e.name, (e) => toTime(e.eventDate)).map((e) => ({ value: e.id, label: e.name })),
+    [editions]
+  );
+  const performerOptions = useMemo(() => nameOptions(items.map((i) => i.performer?.name)), [items]);
+
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return items.filter(
+    const list = items.filter(
       (i) =>
         (!editionFilter || i.editionId === editionFilter) &&
-        (!q || i.title.toLowerCase().includes(q) || i.originalTitle?.toLowerCase().includes(q) || i.performer?.name.toLowerCase().includes(q))
+        (!performerFilter || sameName(i.performer?.name, performerFilter)) &&
+        matchesSearch(search, i.title, i.originalTitle, i.performer?.name)
     );
-  }, [items, editionFilter, search]);
+    return sortList(list, sort, (i) => i.title, (i) => dateByEdition.get(i.editionId) ?? null);
+  }, [items, editionFilter, performerFilter, search, sort, dateByEdition]);
 
   const handleDelete = async (t: Transmission) => {
     if (!confirm(`Delete "${t.title}"?`)) return;
@@ -89,17 +102,21 @@ export default function TransmissionsPage() {
         </button>
       </div>
 
-      <div className="flex gap-3 mb-4">
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search title or performer..." className={`${inputCls} max-w-xs`} />
-        <select value={editionFilter} onChange={(e) => setEditionFilter(e.target.value)} className={`${inputCls} max-w-[200px]`}>
-          <option value="">All editions</option>
-          {editions.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ListControls
+        className="mb-4"
+        search={search}
+        onSearch={setSearch}
+        editions={editionOptions}
+        edition={editionFilter}
+        onEdition={setEditionFilter}
+        performers={performerOptions}
+        performer={performerFilter}
+        onPerformer={setPerformerFilter}
+        sort={sort}
+        onSort={setSort}
+        shown={filtered.length}
+        total={items.length}
+      />
 
       <DataTable
         data={filtered}

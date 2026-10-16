@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
 import EditionEditorModal from '@/components/admin/EditionEditorModal';
+import { ListControls } from '@/components/ui/ListControls';
+import { matchesSearch, nameOptions, sameName, sortList, toTime, type SortMode } from '@/lib/listView';
 
 interface Edition {
   id: string;
@@ -26,6 +28,10 @@ export default function EditionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingItem, setEditingItem] = useState<Edition | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState('');
+  const [performerFilter, setPerformerFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sort, setSort] = useState<SortMode>('date-desc');
   // /admin/editions?edit=latest jumps straight into the Latest Ritual's editor (once)
   const jumpedToLatest = useRef(false);
 
@@ -56,6 +62,18 @@ export default function EditionsPage() {
     }
   };
 
+  const performerOptions = useMemo(() => nameOptions(editions.flatMap((e) => (e.performers || []).map((p: any) => p.name))), [editions]);
+  const filtered = useMemo(() => {
+    const list = editions.filter(
+      (e) =>
+        (!performerFilter || (e.performers || []).some((p: any) => sameName(p.name, performerFilter))) &&
+        (!statusFilter || (statusFilter === 'active' ? e.isActive : !e.isActive)) &&
+        matchesSearch(search, e.name, e.slug)
+    );
+    // Event date is the truth: upcoming editions first, undated ones last
+    return sortList(list, sort, (e) => e.name, (e) => toTime(e.eventDate));
+  }, [editions, performerFilter, statusFilter, search, sort]);
+
   const handleDelete = async (item: Edition) => {
     if (!confirm(`Are you sure you want to delete "${item.name}"?`)) return;
 
@@ -85,8 +103,30 @@ export default function EditionsPage() {
         </button>
       </div>
 
+      <ListControls
+        className="mb-4"
+        search={search}
+        onSearch={setSearch}
+        performers={performerOptions}
+        performer={performerFilter}
+        onPerformer={setPerformerFilter}
+        extra={{
+          label: 'Any status',
+          options: [
+            { value: 'active', label: 'Active' },
+            { value: 'archived', label: 'Archived' },
+          ],
+          value: statusFilter,
+          onChange: setStatusFilter,
+        }}
+        sort={sort}
+        onSort={setSort}
+        shown={filtered.length}
+        total={editions.length}
+      />
+
       <DataTable
-        data={editions}
+        data={filtered}
         isLoading={isLoading}
         columns={[
           { header: 'Title', accessor: 'name' },

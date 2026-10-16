@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
+import { ListControls } from '@/components/ui/ListControls';
+import { matchesSearch, sortList, toTime, type SortMode } from '@/lib/listView';
 import ImageUploadField from '@/components/admin/ImageUploadField';
 import { JSON_SOCIAL_KEYS, SOCIAL_NETWORKS, type RelatedLink } from '@/lib/profileLinks';
 
@@ -12,6 +14,7 @@ type ProfileType = 'PERFORMER' | 'COLLABORATOR' | 'AFFILIATE';
 interface Profile {
   id: string;
   type: ProfileType;
+  createdAt?: string;
   name: string;
   slug: string;
   role?: string | null;
@@ -49,6 +52,8 @@ export default function ProfileManager(props: ProfileManagerProps) {
   const [editing, setEditing] = useState<Profile | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState('');
+  const [editionFilter, setEditionFilter] = useState('');
+  const [sort, setSort] = useState<SortMode>('az');
 
   useEffect(() => {
     fetchData();
@@ -65,10 +70,20 @@ export default function ProfileManager(props: ProfileManagerProps) {
     }
   };
 
+  const editionOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const i of items) for (const p of i.performers || []) seen.set(p.edition.id, p.edition.name);
+    return [...seen.entries()].map(([value, label]) => ({ value, label })).sort((x, y) => x.label.localeCompare(y.label));
+  }, [items]);
+
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return items.filter((i) => !q || i.name.toLowerCase().includes(q) || i.role?.toLowerCase().includes(q));
-  }, [items, search]);
+    const list = items.filter(
+      (i) =>
+        (!editionFilter || (i.performers || []).some((p) => p.edition.id === editionFilter)) &&
+        matchesSearch(search, i.name, i.role)
+    );
+    return sortList(list, sort, (i) => i.name, (i) => toTime(i.createdAt));
+  }, [items, editionFilter, search, sort]);
 
   const handleDelete = async (p: Profile) => {
     const note = type === 'PERFORMER' ? '\n\nEdition line-ups keep the name; only this write-up and photo are removed.' : '';
@@ -95,7 +110,18 @@ export default function ProfileManager(props: ProfileManagerProps) {
         </button>
       </div>
 
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${singular}s...`} className={`${inputCls} max-w-xs mb-4`} />
+      <ListControls
+        className="mb-4"
+        search={search}
+        onSearch={setSearch}
+        editions={type === 'PERFORMER' ? editionOptions : undefined}
+        edition={editionFilter}
+        onEdition={setEditionFilter}
+        sort={sort}
+        onSort={setSort}
+        shown={filtered.length}
+        total={items.length}
+      />
 
       <DataTable
         data={filtered}

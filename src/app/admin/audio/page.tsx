@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
+import { ListControls } from '@/components/ui/ListControls';
+import { matchesSearch, nameOptions, sameName, sortList, toTime, type SortMode } from '@/lib/listView';
 import Mp3UploadModal from '@/components/admin/Mp3UploadModal';
 
 interface AudioResource {
   id: string;
+  createdAt?: string;
   title: string;
   editionId: string;
   performerId?: string | null;
@@ -23,6 +26,11 @@ export default function AudioPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editing, setEditing] = useState<AudioResource | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [editionDates, setEditionDates] = useState<Map<string, number | null>>(new Map());
+  const [search, setSearch] = useState('');
+  const [editionFilter, setEditionFilter] = useState('');
+  const [performerFilter, setPerformerFilter] = useState('');
+  const [sort, setSort] = useState<SortMode>('date-desc');
 
   useEffect(() => {
     fetchData();
@@ -34,7 +42,10 @@ export default function AudioPage() {
       const [rRes, eRes] = await Promise.all([fetch('/api/admin/resources?type=AUDIO'), fetch('/api/admin/editions')]);
       const [r, e] = await Promise.all([rRes.json(), eRes.json()]);
       if (r.success) setTracks(r.data);
-      if (e.success) setEditions(e.data.map((ed: any) => ({ label: ed.name, value: ed.id })));
+      if (e.success) {
+        setEditions(e.data.map((ed: any) => ({ label: ed.name, value: ed.id })));
+        setEditionDates(new Map(e.data.map((ed: any) => [ed.id, toTime(ed.eventDate)])));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -45,6 +56,21 @@ export default function AudioPage() {
     const res = await fetch(`/api/admin/resources/${t.id}`, { method: 'DELETE' });
     if ((await res.json()).success) fetchData();
   };
+
+  const editionOptions = useMemo(
+    () => sortList(editions, 'date-desc', (e) => e.label, (e) => editionDates.get(e.value) ?? null),
+    [editions, editionDates]
+  );
+  const performerOptions = useMemo(() => nameOptions(tracks.map((t) => t.performer?.name || t.metadata?.artist)), [tracks]);
+  const filtered = useMemo(() => {
+    const list = tracks.filter(
+      (t) =>
+        (!editionFilter || t.editionId === editionFilter) &&
+        (!performerFilter || sameName(t.performer?.name || t.metadata?.artist, performerFilter)) &&
+        matchesSearch(search, t.title, t.performer?.name, t.metadata?.artist)
+    );
+    return sortList(list, sort, (t) => t.title, (t) => editionDates.get(t.editionId) ?? toTime(t.createdAt));
+  }, [tracks, editionFilter, performerFilter, search, sort, editionDates]);
 
   const fmt = (s?: number) => (s ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` : '—');
 
@@ -66,8 +92,24 @@ export default function AudioPage() {
         </button>
       </div>
 
+      <ListControls
+        className="mb-4"
+        search={search}
+        onSearch={setSearch}
+        editions={editionOptions.map((e) => ({ value: e.value, label: e.label }))}
+        edition={editionFilter}
+        onEdition={setEditionFilter}
+        performers={performerOptions}
+        performer={performerFilter}
+        onPerformer={setPerformerFilter}
+        sort={sort}
+        onSort={setSort}
+        shown={filtered.length}
+        total={tracks.length}
+      />
+
       <DataTable
-        data={tracks}
+        data={filtered}
         isLoading={isLoading}
         emptyMessage="No audio tracks yet."
         columns={[

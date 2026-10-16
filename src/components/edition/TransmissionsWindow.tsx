@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { PublicEdition, PublicTransmission } from './types';
+import { ListControls } from '@/components/ui/ListControls';
+import { matchesSearch, nameOptions, sameName, sortList, toTime, type SortMode } from '@/lib/listView';
 
 interface TransmissionsWindowProps {
   editions: PublicEdition[];
@@ -21,6 +23,8 @@ interface Row extends PublicTransmission {
 export function TransmissionsWindow({ editions, kinds, title = 'TRANSMISSIONS', onPlayVideo }: TransmissionsWindowProps) {
   const [editionFilter, setEditionFilter] = useState('');
   const [query, setQuery] = useState('');
+  const [performerFilter, setPerformerFilter] = useState('');
+  const [sort, setSort] = useState<SortMode>('date-desc');
 
   const rows: Row[] = useMemo(
     () =>
@@ -38,42 +42,40 @@ export function TransmissionsWindow({ editions, kinds, title = 'TRANSMISSIONS', 
     [editions, kinds]
   );
 
-  const q = query.trim().toLowerCase();
   const filtered = rows.filter(
     (r) =>
       (!editionFilter || r.editionId === editionFilter) &&
-      (!q || r.title.toLowerCase().includes(q) || r.performerName?.toLowerCase().includes(q))
+      (!performerFilter || sameName(r.performerName, performerFilter)) &&
+      matchesSearch(query, r.title, r.performerName)
   );
 
-  // Group by edition, newest edition first (editions arrive latest-first)
-  const groups = editions
-    .map((e) => ({ edition: e, items: filtered.filter((r) => r.editionId === e.id) }))
+  // Groups are editions, ordered by event date (or A-Z); within a group A-Z sorts by title
+  const editionsWithRows = editions.filter((e) => rows.some((r) => r.editionId === e.id));
+  const groups = sortList(editionsWithRows, sort, (e) => e.name, (e) => toTime(e.eventDate))
+    .map((e) => {
+      const items = filtered.filter((r) => r.editionId === e.id);
+      return { edition: e, items: sort === 'az' || sort === 'za' ? sortList(items, sort, (r) => r.title, () => null) : items };
+    })
     .filter((g) => g.items.length > 0);
 
-  const editionsWithRows = editions.filter((e) => rows.some((r) => r.editionId === e.id));
+  const performerOptions = nameOptions(rows.map((r) => r.performerName));
 
   return (
     <div className="font-mono text-white space-y-4">
-      <div className="flex gap-2">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search performer or title..."
-          className="flex-1 bg-[#111] border border-[#333] rounded px-3 py-2 text-xs outline-none focus:border-[#99ccff]"
-        />
-        <select
-          value={editionFilter}
-          onChange={(e) => setEditionFilter(e.target.value)}
-          className="bg-[#111] border border-[#333] rounded px-2 py-2 text-xs outline-none focus:border-[#99ccff]"
-        >
-          <option value="">All editions</option>
-          {editionsWithRows.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ListControls
+        search={query}
+        onSearch={setQuery}
+        editions={editionsWithRows.map((e) => ({ value: e.id, label: e.name }))}
+        edition={editionFilter}
+        onEdition={setEditionFilter}
+        performers={performerOptions}
+        performer={performerFilter}
+        onPerformer={setPerformerFilter}
+        sort={sort}
+        onSort={setSort}
+        shown={filtered.length}
+        total={rows.length}
+      />
 
       {groups.length === 0 && <p className="text-xs text-white/40">No {title.toLowerCase()} match.</p>}
 

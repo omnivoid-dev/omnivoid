@@ -4,9 +4,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import AdminLayout from '@/components/admin/AdminLayout';
 import DataTable from '@/components/admin/DataTable';
+import { ListControls } from '@/components/ui/ListControls';
+import { matchesSearch, nameOptions, sameName, sortList, toTime, type SortMode } from '@/lib/listView';
 
 interface RadioShow {
   id: string;
+  createdAt?: string;
   title: string;
   originalTitle?: string | null;
   url: string;
@@ -23,6 +26,7 @@ interface RadioShow {
 interface Edition {
   id: string;
   name: string;
+  eventDate?: string | null;
   performers: { id: string; name: string }[];
 }
 
@@ -36,6 +40,9 @@ export default function RadioPage() {
   const [editing, setEditing] = useState<RadioShow | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState('');
+  const [editionFilter, setEditionFilter] = useState('');
+  const [performerFilter, setPerformerFilter] = useState('');
+  const [sort, setSort] = useState<SortMode>('date-desc');
 
   useEffect(() => {
     fetchData();
@@ -53,12 +60,23 @@ export default function RadioPage() {
     }
   };
 
+  const dateByEdition = useMemo(() => new Map(editions.map((e) => [e.id, toTime(e.eventDate)])), [editions]);
+  const editionOptions = useMemo(
+    () => sortList(editions, 'date-desc', (e) => e.name, (e) => toTime(e.eventDate)).map((e) => ({ value: e.id, label: e.name })),
+    [editions]
+  );
+  const performerOptions = useMemo(() => nameOptions(items.map((i) => i.performer?.name)), [items]);
+
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return items.filter(
-      (i) => !q || i.title.toLowerCase().includes(q) || i.originalTitle?.toLowerCase().includes(q) || i.performer?.name.toLowerCase().includes(q)
+    const list = items.filter(
+      (i) =>
+        (!editionFilter || i.editionId === editionFilter) &&
+        (!performerFilter || sameName(i.performer?.name, performerFilter)) &&
+        matchesSearch(search, i.title, i.originalTitle, i.performer?.name, i.author)
     );
-  }, [items, search]);
+    // A show's date is its edition's event date, falling back to when it was added
+    return sortList(list, sort, (i) => i.title, (i) => (i.editionId ? dateByEdition.get(i.editionId) : null) ?? toTime(i.createdAt));
+  }, [items, editionFilter, performerFilter, search, sort, dateByEdition]);
 
   const handleDelete = async (s: RadioShow) => {
     if (!confirm(`Delete "${s.title}"?`)) return;
@@ -84,7 +102,21 @@ export default function RadioPage() {
         </button>
       </div>
 
-      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search shows..." className={`${inputCls} max-w-xs mb-4`} />
+      <ListControls
+        className="mb-4"
+        search={search}
+        onSearch={setSearch}
+        editions={editionOptions}
+        edition={editionFilter}
+        onEdition={setEditionFilter}
+        performers={performerOptions}
+        performer={performerFilter}
+        onPerformer={setPerformerFilter}
+        sort={sort}
+        onSort={setSort}
+        shown={filtered.length}
+        total={items.length}
+      />
 
       <DataTable
         data={filtered}
