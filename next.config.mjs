@@ -32,6 +32,9 @@ const nextConfig = {
   
   // Webpack configuration for canvas and audio
   webpack: (config, { isServer }) => {
+    // The PDF reader library mentions the Node-only 'canvas' package; it is never needed (we draw on browser canvases)
+    config.resolve.alias = { ...config.resolve.alias, canvas: false };
+
     // Handle canvas for visual components
     if (!isServer) {
       config.resolve.fallback = {

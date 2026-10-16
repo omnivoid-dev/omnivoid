@@ -50,9 +50,10 @@ export function RadioWindow({ shows }: RadioWindowProps) {
 
   return (
     <div className="font-mono text-white space-y-4">
-      {/* Player */}
+      {/* Player: only once a show is chosen */}
+      {active && (
       <div className="border border-[#99ccff]/30 rounded-lg p-3 bg-white/5 space-y-3">
-        {active ? (
+        {(
           <>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -80,10 +81,9 @@ export function RadioWindow({ shows }: RadioWindowProps) {
               style={{ border: 'none' }}
             />
           </>
-        ) : (
-          <p className="text-[11px] text-white/50 text-center py-3">Select a show to start listening.</p>
         )}
       </div>
+      )}
 
       <ListControls
         search={query}

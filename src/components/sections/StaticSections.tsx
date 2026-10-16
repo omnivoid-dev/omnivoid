@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ListControls } from '@/components/ui/ListControls';
+import { PdfViewer } from '@/components/sections/PdfViewer';
 import { matchesSearch, sortList, toTime, type SortMode } from '@/lib/listView';
 
 /** Research, Conundrum, Contact and Gallery, as React (replacing the old HTML-string windows). */
@@ -15,13 +16,9 @@ interface ResearchDoc {
   thumbnailUrl?: string;
 }
 
-/** Supabase serves a file as a download (not in the browser viewer) when given ?download=<name>. */
-function downloadUrl(doc: ResearchDoc): string {
-  const name = doc.fileName || `${doc.title}.pdf`;
-  return `${doc.fileUrl}${doc.fileUrl!.includes('?') ? '&' : '?'}download=${encodeURIComponent(name)}`;
-}
-
 export function ResearchSection({ documents }: { documents: ResearchDoc[] }) {
+  // Papers open in the reader inside the site, never in a new tab, and there is no download
+  const [reading, setReading] = useState<ResearchDoc | null>(null);
   return (
     <div className="space-y-4 font-mono">
       <h3 className="text-xs font-bold text-white tracking-widest border-b border-[#99ccff]/30 pb-3">📚 RESEARCH PAPERS</h3>
@@ -36,18 +33,18 @@ export function ResearchSection({ documents }: { documents: ResearchDoc[] }) {
             </div>
             <p className="text-[10px] text-white/50 mb-3 whitespace-pre-wrap">{doc.excerpt || 'Research artifact from the OMNIVOID repository.'}</p>
             {doc.fileUrl && (
-              <div className="flex flex-wrap gap-2">
-                <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="inline-block text-[10px] px-3 py-1 border border-[#99ccff]/50 text-[#99ccff] font-bold rounded hover:bg-[#99ccff]/10">
-                  VIEW ↗
-                </a>
-                <a href={downloadUrl(doc)} download={doc.fileName || undefined} className="inline-block text-[10px] px-3 py-1 bg-[#99ccff] text-[#050505] font-bold rounded hover:bg-[#7ab8e6]">
-                  DOWNLOAD PDF ⬇
-                </a>
-              </div>
+              <button
+                type="button"
+                onClick={() => setReading(doc)}
+                className="inline-block text-[10px] px-3 py-1 bg-[#99ccff] text-[#050505] font-bold rounded hover:bg-[#7ab8e6]"
+              >
+                READ PAPER
+              </button>
             )}
           </div>
         </div>
       ))}
+      {reading?.fileUrl && <PdfViewer url={reading.fileUrl} title={reading.title} onClose={() => setReading(null)} />}
     </div>
   );
 }
