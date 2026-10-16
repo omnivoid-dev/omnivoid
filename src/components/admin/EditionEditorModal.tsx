@@ -516,6 +516,7 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
               <EditionGalleryTab
                 editionId={initialData.id}
                 performers={performers.filter((p) => !p.key.startsWith('new-') && p.name.trim()).map((p) => ({ id: p.key, name: p.name }))}
+                onGoToPerformers={() => setTab('performers')}
               />
             ) : (
               <p className="text-xs text-white/40">Save the edition first, then come back to add photos.</p>
