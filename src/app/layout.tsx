@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Space_Mono } from 'next/font/google';
 import '@/styles/globals.css';
 import { SITE_URL } from '@/lib/siteUrl';
@@ -11,6 +11,9 @@ const spaceMono = Space_Mono({
   subsets: ['latin'],
   variable: '--font-space-mono',
 });
+
+// Lets the page use the whole screen on phones; the taskbar pads for the bottom bar with env(safe-area-inset-bottom)
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, viewportFit: 'cover' };
 
 // Metadata is built from the admin's share settings; refreshed at most once a minute
 export const revalidate = 60;

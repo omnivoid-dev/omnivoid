@@ -12,7 +12,9 @@ import { useAudioAnalyzer } from '@/hooks/useAudioAnalyzer';
 import { useAudioPlayer, type AudioTrack } from '@/hooks/useAudioPlayer';
 import { AudioPlayer, type PlayerMode, type PlaylistInfo } from '@/components/audio/AudioPlayer';
 import { TaskbarPlayer } from '@/components/audio/TaskbarPlayer';
-import { AgentOverlay } from '@/components/AgentOverlay';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import { MobileStart } from '@/components/mobile/MobileStart';
+import { MobileTaskbar } from '@/components/mobile/MobileTaskbar';
 import { TintedImage } from '@/components/TintedImage';
 import { DEFAULT_LOGO_URL, LOGO_ASPECT, MENU_ICON_SLOTS, iconUrlFor, menuLabelFor, resolveBranding, type SiteBranding } from '@/lib/branding';
 import { RitualsWindow } from '@/components/edition/RitualsWindow';
@@ -116,6 +118,7 @@ export default function Home() {
 
   const { connectAudioElement, getAudioData } = useAudioAnalyzer();
   const player = useAudioPlayer(connectAudioElement);
+  const isMobile = useIsMobile();
   const currentTrack = player.current;
   const isPlayingAudio = player.isPlaying;
 
@@ -407,15 +410,8 @@ export default function Home() {
         onActiveChange={setFxActive}
       />
       
-      {/* Agent Dialogue HUD Overlay */}
-      <AgentOverlay
-        currentTrackTitle={currentTrack?.title}
-        isPlaying={isPlayingAudio}
-        selectedEditionName={selectedEditionName}
-      />
-
       {/* Main OMNIVOID Central Logo watermark */}
-      <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-10">
+      <div className="fixed inset-0 hidden md:flex items-center justify-center pointer-events-none z-10">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 0.12, scale: 1 }}
@@ -469,6 +465,19 @@ export default function Home() {
         <div key={`${activeSection}:${profileFocus ?? ''}`}>{renderSection(activeSection)}</div>
       </WindowShell>
 
+      {/* Phones: big START button in the centre, and the section grid it opens */}
+      {isMobile && (
+        <MobileStart
+          sections={visibleSectionIds.map((id) => ({ id, label: menuLabelFor(branding, id), icon: renderIcon(id, 28) }))}
+          activeId={activeSection}
+          windowOpen={shellOpen}
+          menuOpen={isMenuOpen}
+          onOpenMenu={() => setIsMenuOpen(true)}
+          onCloseMenu={() => setIsMenuOpen(false)}
+          onSelect={goToSection}
+        />
+      )}
+
       {/* Audio engine: always mounted so the music survives hiding the player */}
       <audio ref={player.audioRef} {...player.audioProps} />
 
@@ -482,6 +491,7 @@ export default function Home() {
       />
 
       {/* Taskbar / Footer */}
+      {!isMobile && (
       <footer className="fixed bottom-0 left-0 right-0 h-12 bg-black/90 backdrop-blur-xl border-t border-white/5 flex items-center justify-between px-8 z-[200]">
         <div className="flex items-center gap-6">
           <button 
@@ -538,10 +548,28 @@ export default function Home() {
           </a>
         </div>
       </footer>
+      )}
+
+      {/* Phones: icon-only taskbar */}
+      {isMobile && (
+        <MobileTaskbar
+          menuOpen={isMenuOpen}
+          onToggleMenu={() => setIsMenuOpen((v) => !v)}
+          playerOpen={playerMode !== 'hidden'}
+          playerPlaying={isPlayingAudio}
+          onTogglePlayer={() => (playerMode === 'hidden' ? openPlayer() : changePlayerMode('hidden'))}
+          starfieldOn={showStarfield}
+          onToggleStarfield={() => setShowStarfield((v) => !v)}
+          fxOn={fxEnabled}
+          onToggleFx={() => setFxEnabled((v) => !v)}
+          theme={themeEdition && activeTheme ? { name: themeEdition.name, color: palette.ink } : null}
+          onClearTheme={() => setThemeEditionId(null)}
+        />
+      )}
 
       {/* Start Menu */}
       <AnimatePresence>
-        {isMenuOpen && (
+        {isMenuOpen && !isMobile && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

@@ -240,7 +240,7 @@ export function AudioPlayer({ engine, mode, onModeChange, tracks, playlists, get
         setEditionFilter('');
         setPerformerFilter('');
       }}
-      className={`${control} flex-1`}
+      className={`${control} flex-1 basis-full md:basis-0`}
       aria-label="Playlist"
     >
       <option value={ALL}>All tracks ({tracks.length})</option>
@@ -295,7 +295,7 @@ export function AudioPlayer({ engine, mode, onModeChange, tracks, playlists, get
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="fixed bottom-16 right-6 w-96 max-w-[calc(100vw-24px)] bg-[#080808]/95 border border-[#99ccff]/30 rounded-xl shadow-2xl z-[250] overflow-hidden backdrop-blur-2xl text-white font-mono"
+          className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-3 right-3 md:left-auto md:right-6 md:bottom-16 md:w-96 bg-[#080808]/95 border border-[#99ccff]/30 rounded-xl shadow-2xl z-[250] overflow-hidden backdrop-blur-2xl text-white font-mono"
         >
           <div className="px-4 py-2.5 bg-[#99ccff]/10 border-b border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -349,7 +349,7 @@ export function AudioPlayer({ engine, mode, onModeChange, tracks, playlists, get
 
   // ----------------------------------------------------------------- window
   return (
-    <div className="fixed inset-0 z-[250] pointer-events-none flex items-center justify-center pb-12 px-2">
+    <div className="fixed inset-0 h-[100dvh] z-[250] pointer-events-none flex items-stretch md:items-center justify-center pt-12 pb-[calc(3.5rem+env(safe-area-inset-bottom)+10px)] md:pt-0 md:pb-12 px-2.5">
       <motion.div
         key="window"
         drag
@@ -360,7 +360,7 @@ export function AudioPlayer({ engine, mode, onModeChange, tracks, playlists, get
         animate={{ opacity: 1, scale: 1 }}
         role="dialog"
         aria-label="Audio player"
-        className="pointer-events-auto w-[760px] max-w-full max-h-[calc(100vh-72px)] flex flex-col bg-[#080808]/95 border border-[#99ccff] overflow-hidden backdrop-blur-2xl text-white font-mono"
+        className="pointer-events-auto w-[760px] max-w-full max-h-full md:max-h-[calc(100vh-72px)] flex flex-col bg-[#080808]/95 border border-[#99ccff] overflow-hidden backdrop-blur-2xl text-white font-mono"
         style={{ boxShadow: '0 0 24px rgba(153, 204, 255, 0.18), 4px 4px 10px rgba(0, 0, 0, 0.5)' }}
       >
         <div
@@ -425,7 +425,7 @@ export function AudioPlayer({ engine, mode, onModeChange, tracks, playlists, get
           <div className="p-4 space-y-3">
             <div className="flex flex-wrap gap-2">
               {playlistSelect}
-              <select value={editionFilter} onChange={(e) => setEditionFilter(e.target.value)} className={control} aria-label="Filter by edition">
+              <select value={editionFilter} onChange={(e) => setEditionFilter(e.target.value)} className={`${control} flex-1 md:flex-none`} aria-label="Filter by edition">
                 <option value="">All editions</option>
                 {editionOptions.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -433,7 +433,7 @@ export function AudioPlayer({ engine, mode, onModeChange, tracks, playlists, get
                   </option>
                 ))}
               </select>
-              <select value={performerFilter} onChange={(e) => setPerformerFilter(e.target.value)} className={control} aria-label="Filter by performer">
+              <select value={performerFilter} onChange={(e) => setPerformerFilter(e.target.value)} className={`${control} flex-1 md:flex-none`} aria-label="Filter by performer">
                 <option value="">All performers</option>
                 {performerOptions.map((o) => (
                   <option key={o.value} value={o.value}>

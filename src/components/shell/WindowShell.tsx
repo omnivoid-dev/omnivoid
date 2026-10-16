@@ -133,7 +133,13 @@ export function WindowShell({ isOpen, onClose, title, sections, activeId, onSele
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[150] pointer-events-none flex items-center justify-center pb-12">
+        <div
+          className={`fixed inset-0 z-[150] pointer-events-none flex justify-center ${
+            isMobile ? 'h-[100dvh] items-stretch px-2.5 pt-12' : 'items-center pb-12'
+          }`}
+          // On phones the window is an inset card: background stays visible above and around it, and it stops above the taskbar
+          style={isMobile ? { paddingBottom: 'calc(3.5rem + env(safe-area-inset-bottom) + 10px)' } : undefined}
+        >
           <motion.div
             ref={winRef}
             drag={!frame}
@@ -152,9 +158,9 @@ export function WindowShell({ isOpen, onClose, title, sections, activeId, onSele
             aria-label={title}
             className={`pointer-events-auto flex flex-col bg-[#111111] border border-[#99ccff] overflow-hidden ${
               isMobile
-                ? '!w-screen !h-[calc(100vh-48px)] !max-w-none'
+                ? '!w-full !h-full !max-w-none !min-w-0 rounded-xl'
                 : maximized
-                  ? '!w-[calc(100vw-16px)] !h-[calc(100vh-64px)] !max-w-none'
+                  ? '!w-[calc(100vw-16px)] !h-[calc(100dvh-64px)] !max-w-none'
                   : 'min-w-[480px] min-h-[320px] max-w-[100vw]'
             }`}
             style={{
@@ -202,7 +208,7 @@ export function WindowShell({ isOpen, onClose, title, sections, activeId, onSele
                 )}
                 <button
                   onClick={onClose}
-                  className="w-6 h-6 text-[#99ccff] border border-[#99ccff] hover:bg-[#99ccff] hover:text-black transition-colors text-base leading-none"
+                  className={`${isMobile ? 'w-8 h-8' : 'w-6 h-6'} text-[#99ccff] border border-[#99ccff] hover:bg-[#99ccff] hover:text-black transition-colors text-base leading-none`}
                   aria-label="Close window"
                 >
                   ×
@@ -214,7 +220,7 @@ export function WindowShell({ isOpen, onClose, title, sections, activeId, onSele
             <div className="flex flex-col md:flex-row flex-1 min-h-0">
               <nav
                 aria-label="Sections"
-                className="order-last md:order-first shrink-0 flex md:flex-col overflow-x-auto md:overflow-y-auto md:w-[76px] bg-[#0a0a0a] border-t md:border-t-0 md:border-r border-[#333333]"
+                className={`order-last md:order-first shrink-0 grid ${sections.length <= 10 ? 'grid-cols-5' : 'grid-cols-6'} md:flex md:flex-col md:overflow-y-auto md:w-[76px] bg-[#0a0a0a] border-t md:border-t-0 md:border-r border-[#333333]`}
               >
                 {sections.map((s, i) => {
                   const active = s.id === activeId;
@@ -224,14 +230,14 @@ export function WindowShell({ isOpen, onClose, title, sections, activeId, onSele
                       onClick={() => onSelect(s.id)}
                       title={`${s.label}${i < 9 ? ` (${i + 1})` : ''}`}
                       aria-current={active ? 'page' : undefined}
-                      className={`shrink-0 flex flex-col items-center justify-center gap-1 px-2 py-2.5 min-w-[64px] border-b-2 md:border-b-0 md:border-l-2 transition-colors ${
+                      className={`shrink-0 flex flex-col items-center justify-center gap-1 px-1 md:px-2 py-2 md:py-2.5 min-w-0 md:min-w-[64px] border-b-2 md:border-b-0 md:border-l-2 transition-colors ${
                         active
                           ? 'bg-[#99ccff]/10 text-[#99ccff] border-[#99ccff]'
                           : 'text-white/45 border-transparent hover:text-[#99ccff] hover:bg-white/5'
                       }`}
                     >
                       <span className="h-[22px] flex items-center justify-center">{s.icon}</span>
-                      <span className="text-[8px] font-bold tracking-wider leading-none max-w-[64px] truncate">{s.label}</span>
+                      <span className="text-[7px] md:text-[8px] font-bold tracking-normal md:tracking-wider leading-none max-w-full md:max-w-[64px] truncate">{s.label}</span>
                     </button>
                   );
                 })}
