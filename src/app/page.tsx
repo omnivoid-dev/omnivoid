@@ -119,6 +119,14 @@ export default function Home() {
   const { connectAudioElement, getAudioData } = useAudioAnalyzer();
   const player = useAudioPlayer(connectAudioElement);
   const isMobile = useIsMobile();
+  // Branding on its own, ahead of the full content, so the splash logo is right from the first moment
+  const [earlyBranding, setEarlyBranding] = useState<SiteBranding | null>(null);
+  useEffect(() => {
+    fetch('/api/branding')
+      .then((r) => r.json())
+      .then((d) => d.success && setEarlyBranding(resolveBranding(d.data)))
+      .catch(() => {});
+  }, []);
   const currentTrack = player.current;
   const isPlayingAudio = player.isPlaying;
 
@@ -373,7 +381,7 @@ export default function Home() {
   };
 
   if (!isSplashComplete) {
-    return <SplashScreen onComplete={() => setIsSplashComplete(true)} />;
+    return <SplashScreen onComplete={() => setIsSplashComplete(true)} branding={earlyBranding ?? (content ? branding : null)} />;
   }
 
   const selectedEditionName = content?.editions.find(e => e.id === selectedEditionId)?.name;

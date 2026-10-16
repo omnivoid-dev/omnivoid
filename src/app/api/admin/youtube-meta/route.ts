@@ -4,6 +4,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminToken } from '@/lib/auth';
+
+// Reads the request, so it is always dynamic (stops a harmless prerender warning during the build)
+export const dynamic = 'force-dynamic';
 import { getYouTubeId } from '@/lib/youtube';
 
 export async function GET(request: NextRequest) {

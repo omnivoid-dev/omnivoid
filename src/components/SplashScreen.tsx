@@ -2,10 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { TintedImage } from '@/components/TintedImage';
+import { DEFAULT_LOGO_URL, LOGO_ASPECT, resolveBranding, type SiteBranding } from '@/lib/branding';
 
 interface SplashScreenProps {
   onComplete: () => void;
+  /** The site's branding from the admin; null while it is still loading. The logo waits for it so it never flashes the old colour. */
+  branding: SiteBranding | null;
 }
+
+// If the branding has not arrived by then, show the default logo rather than an empty space
+const LOGO_WAIT_MS = 4000;
 
 interface LogEntry {
   id: number;
@@ -14,11 +21,18 @@ interface LogEntry {
 
 const WORM_ICON = '<img src="/ascii/WORM.svg" style="width: 14px; height: 14px; filter: brightness(0) invert(1); vertical-align: middle; margin-right: 8px;">';
 
-export function SplashScreen({ onComplete }: SplashScreenProps) {
+export function SplashScreen({ onComplete, branding }: SplashScreenProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [progress, setProgress] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
   const logIdRef = useRef(0);
+  const [waitedForLogo, setWaitedForLogo] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setWaitedForLogo(true), LOGO_WAIT_MS);
+    return () => clearTimeout(t);
+  }, []);
+  const logoReady = !!branding || waitedForLogo;
+  const logo = (branding ?? resolveBranding(null)).logo;
   // The parent passes a new onComplete function on every render; keep the latest in a ref so
   // the loading sequence below starts exactly once instead of restarting (and doubling its log lines).
   const onCompleteRef = useRef(onComplete);
@@ -97,17 +111,20 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
           {/* Logo */}
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+            animate={{ scale: logoReady ? 1 : 0.9, opacity: logoReady ? 1 : 0 }}
             transition={{ duration: 0.6 }}
             className="mb-12 relative"
           >
-            <img
-              src="/logo.svg"
+            <TintedImage
+              src={logo.url || DEFAULT_LOGO_URL}
+              tint={logo.tint}
+              aspect={LOGO_ASPECT}
               alt="OMNIVOID"
               style={{
                 maxWidth: '220px',
                 width: '40vw',
-                filter: 'brightness(1.5)',
+                // The boost suits the original logo; a chosen colour should show as set
+                filter: logo.tint.mode === 'none' ? 'brightness(1.5)' : undefined,
               }}
             />
             <div className="absolute -bottom-4 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#99ccff]/50 to-transparent" />
