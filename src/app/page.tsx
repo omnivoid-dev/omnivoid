@@ -6,7 +6,6 @@ import { WindowShell, type ShellSection } from '@/components/shell/WindowShell';
 import { ResearchSection, ConundrumSection, ContactSection, GallerySection, type GalleryItem } from '@/components/sections/StaticSections';
 import { ProfilesSection } from '@/components/sections/ProfilesSection';
 import { SplashScreen } from '@/components/SplashScreen';
-import { StartScreen } from '@/components/StartScreen';
 import { AgentSystem } from '@/components/AgentSystem';
 import { ThreeCanvas } from '@/components/ThreeCanvas';
 import { useAudioAnalyzer } from '@/hooks/useAudioAnalyzer';
@@ -88,7 +87,6 @@ const SECTION_FOR_PROFILE_TYPE: Record<PublicProfile['type'], string> = {
 
 export default function Home() {
   const [isSplashComplete, setIsSplashComplete] = useState(false);
-  const [isStartComplete, setIsStartComplete] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [content, setContent] = useState<ContentStructure | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -370,10 +368,6 @@ export default function Home() {
     const match = url.match(regExp);
     return (match && match[2].length === 11) ? match[2] : null;
   };
-
-  if (!isStartComplete) {
-    return <StartScreen onEnter={() => setIsStartComplete(true)} />;
-  }
 
   if (!isSplashComplete) {
     return <SplashScreen onComplete={() => setIsSplashComplete(true)} />;
