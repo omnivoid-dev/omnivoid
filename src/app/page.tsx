@@ -83,11 +83,6 @@ const SECTION_FOR_PROFILE_TYPE: Record<PublicProfile['type'], string> = {
   AFFILIATE: 'affiliates',
 };
 
-// Tracks served from /public/audio (no database entry needed)
-const BUILT_IN_TRACKS: AudioTrack[] = [
-  { id: 'builtin-47k-phase-01', title: '47K - Phase 01', artist: '47K', url: '/audio/47K_Phase_01.mp3', editionName: '47K' },
-];
-
 export default function Home() {
   const [isSplashComplete, setIsSplashComplete] = useState(false);
   const [isStartComplete, setIsStartComplete] = useState(false);
@@ -210,7 +205,7 @@ export default function Home() {
       duration: r.metadata?.duration,
       editionName: content?.editions.find(e => e.id === r.editionId)?.name,
     }));
-  const audioTracks: AudioTrack[] = [...BUILT_IN_TRACKS, ...dbTracks];
+  const audioTracks: AudioTrack[] = dbTracks;
 
   const profiles = content?.profiles || [];
 
