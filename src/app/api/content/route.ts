@@ -123,6 +123,14 @@ export async function GET(request: NextRequest) {
       })
       .catch(() => []);
 
+    const playlists = await prisma.playlist
+      .findMany({
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        include: { items: { orderBy: { sortOrder: 'asc' }, select: { resourceId: true } } },
+      })
+      .catch(() => []);
+
     const brandingRow = await prisma.siteSettings.findUnique({ where: { key: BRANDING_KEY } }).catch(() => null);
 
     const activeEdition = editions.find(e => e.isLatestRitual) || editions.find(e => e.isActive) || editions[0];
@@ -196,6 +204,7 @@ export async function GET(request: NextRequest) {
           // Sort date: the edition's event date, else when the show was added
           date: (r.edition?.eventDate ?? r.createdAt)?.toISOString() ?? null,
         })),
+        playlists: playlists.map(p => ({ id: p.id, name: p.name, description: p.description, trackIds: p.items.map(i => i.resourceId) })),
         profiles: profiles.map(p => ({
           id: p.id,
           type: p.type,

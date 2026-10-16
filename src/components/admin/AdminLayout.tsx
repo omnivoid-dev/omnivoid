@@ -42,6 +42,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { label: 'Affiliates', href: '/admin/affiliates', icon: '🏢' },
     { label: 'Research Papers', href: '/admin/research', icon: '📚' },
     { label: 'Audio Player', href: '/admin/audio', icon: '🎧' },
+    { label: 'Playlists', href: '/admin/playlists', icon: '🎼' },
     { label: 'Media Library', href: '/admin/media', icon: '🖼️' },
   ];
 

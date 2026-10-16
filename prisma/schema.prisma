@@ -185,6 +185,7 @@ model Resource {
   sortOrder   Int      @default(0)
   isFeatured  Boolean  @default(false)
   isActive    Boolean  @default(true)
+  playlistItems PlaylistItem[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
@@ -326,4 +327,32 @@ model SiteSettings {
   key       String   @unique // "currentEdition", "siteTitle", etc.
   value     Json     // Flexible value storage
   updatedAt DateTime @updatedAt
+}
+// ============================================
+// PLAYLISTS - Hand-made track lists for the audio player
+// ============================================
+model Playlist {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean        @default(true)
+  sortOrder   Int            @default(0)
+  items       PlaylistItem[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([isActive])
+}
+
+model PlaylistItem {
+  id         String   @id @default(cuid())
+  playlistId String
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  sortOrder  Int      @default(0)
+
+  @@unique([playlistId, resourceId])
+  @@index([playlistId])
+  @@index([resourceId])
 }
