@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import ImageUploadField from './ImageUploadField';
 import { NEUTRAL_THEME, THEME_PRESETS, isHex, presetById, resolveTheme, type ThemePalette } from '@/lib/themes';
 import { EffectPreview } from '@/components/fx/EffectPreview';
+import { ExportVideoButton } from '@/components/fx/ExportVideoButton';
 import { FX_SPECS, defaultsFor, fxForPreset } from '@/lib/fx/presets';
 
 interface PerformerEntry {
@@ -198,7 +199,7 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-[#0a0a0a] border border-[#99ccff]/30 rounded-2xl w-full max-w-3xl my-8 overflow-hidden shadow-2xl font-mono text-white"
+        className={`bg-[#0a0a0a] border border-[#99ccff]/30 rounded-2xl w-full ${tab === 'theme' ? 'max-w-6xl' : 'max-w-3xl'} my-8 overflow-hidden shadow-2xl font-mono text-white transition-[max-width]`}
       >
         <div className="px-8 py-5 border-b border-white/10 bg-[#99ccff]/5 flex items-center justify-between">
           <div>
@@ -229,7 +230,7 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[65vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
           {error && (
             <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-xs">[ERROR] {error}</div>
           )}
@@ -380,128 +381,129 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
 
           {/* ---------------- THEME ---------------- */}
           {tab === 'theme' && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               <p className="text-[10px] text-white/40">
-                Applied when a visitor selects this edition. Only the background and the agents take the colours; windows stay constant. The effect (dither, riso, glitch...) comes with the shader step.
+                Applied when a visitor selects this edition. Only the background and the agents take the colours; windows stay constant.
               </p>
 
-              <div>
-                <label className={labelCls}>Preset</label>
-                <select value={themePreset} onChange={(e) => choosePreset(e.target.value)} className={inputCls}>
-                  <option value="">— None (neutral OMNIVOID look) —</option>
-                  {THEME_PRESETS.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label}
-                      {p.provisional ? ' (placeholder colours)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-6 items-start">
+                {/* Preview + effect tuning */}
+                <div className="space-y-4 lg:sticky lg:top-0">
+                  {fxEffect ? (
+                    <>
+                      <div className="text-[10px] font-bold text-[#99ccff] tracking-widest">
+                        {FX_SPECS[fxEffect].label.toUpperCase()} EFFECT (live preview)
+                      </div>
+                      <EffectPreview effect={fxEffect} palette={palette} params={fxParams} />
 
-              <div className="grid grid-cols-3 gap-4">
-                {(
-                  [
-                    ['bg', 'Background'],
-                    ['ink', 'Agents'],
-                    ['accent', 'Accent'],
-                  ] as const
-                ).map(([key, label]) => (
-                  <div key={key}>
-                    <label className={labelCls}>{label}</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={isHex(palette[key]) && palette[key].length === 7 ? palette[key] : '#000000'}
-                        onChange={(e) => setPalette({ ...palette, [key]: e.target.value })}
-                        className="w-9 h-9 bg-transparent border-0 cursor-pointer shrink-0"
-                      />
-                      <input
-                        value={palette[key]}
-                        onChange={(e) => setPalette({ ...palette, [key]: e.target.value })}
-                        className={inputCls}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+                        {FX_SPECS[fxEffect].params.map((spec) => (
+                          <label key={spec.key} className="flex items-center gap-2 text-[10px] text-white/70">
+                            <span className="w-24 shrink-0">{spec.label}</span>
+                            <input
+                              type="range"
+                              min={spec.min}
+                              max={spec.max}
+                              step={spec.step}
+                              value={fxParams[spec.key]}
+                              onChange={(e) => setThemeParams({ ...themeParams, [spec.key]: Number(e.target.value) })}
+                              className="flex-1 min-w-0"
+                            />
+                            <span className="w-10 text-right">{fxParams[spec.key]}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setThemeParams({})}
+                          className="text-[10px] font-bold px-3 py-1.5 rounded border border-white/15 text-white/60 hover:text-white"
+                        >
+                          RESET EFFECT VALUES
+                        </button>
+                        <ExportVideoButton effect={fxEffect} palette={palette} params={fxParams} filename={slug || 'theme'} />
+                      </div>
+                      <p className="text-[10px] text-white/30">Effect values are saved with the edition.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[10px] text-white/40">
+                        {themePreset ? 'No post-effect for this preset yet: the site shows the plain plexus in these colours.' : 'Choose a preset to see its effect.'}
+                      </p>
+                      <div className="rounded-lg border border-white/10 overflow-hidden" style={{ background: palette.bg }}>
+                        <svg viewBox="0 0 320 110" className="w-full h-28">
+                          {[
+                            [30, 30, 90, 70],
+                            [90, 70, 150, 25],
+                            [150, 25, 215, 80],
+                            [215, 80, 285, 35],
+                            [90, 70, 215, 80],
+                          ].map(([x1, y1, x2, y2], i) => (
+                            <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={palette.ink} strokeOpacity={0.55} />
+                          ))}
+                          {[
+                            [30, 30, 3],
+                            [90, 70, 5],
+                            [150, 25, 4],
+                            [215, 80, 6],
+                            [285, 35, 3],
+                          ].map(([cx, cy, r], i) => (
+                            <circle key={i} cx={cx} cy={cy} r={r} fill={palette.ink} />
+                          ))}
+                          <line x1="160" y1="55" x2="150" y2="25" stroke={palette.accent} strokeOpacity={0.7} />
+                          <line x1="160" y1="55" x2="215" y2="80" stroke={palette.accent} strokeOpacity={0.7} />
+                          <circle cx="160" cy="55" r="3" fill={palette.accent} />
+                        </svg>
+                      </div>
+                    </>
+                  )}
+                </div>
 
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => choosePreset(themePreset)}
-                  className="text-[10px] font-bold px-3 py-1.5 rounded border border-white/15 text-white/60 hover:text-white"
-                >
-                  RESET TO PRESET
-                </button>
-              </div>
-
-              {fxEffect ? (
+                {/* Preset + colours, beside the preview so changes are visible as you make them */}
                 <div className="space-y-4">
-                  <div className="text-[10px] font-bold text-[#99ccff] tracking-widest">
-                    {FX_SPECS[fxEffect].label.toUpperCase()} EFFECT (live preview)
+                  <div>
+                    <label className={labelCls}>Preset</label>
+                    <select value={themePreset} onChange={(e) => choosePreset(e.target.value)} className={inputCls}>
+                      <option value="">— None (neutral OMNIVOID look) —</option>
+                      {THEME_PRESETS.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.label}
+                          {p.provisional ? ' (placeholder colours)' : ''}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <EffectPreview effect={fxEffect} palette={palette} params={fxParams} />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-                    {FX_SPECS[fxEffect].params.map((spec) => (
-                      <label key={spec.key} className="flex items-center gap-2 text-[10px] text-white/70">
-                        <span className="w-24 shrink-0">{spec.label}</span>
+                  {(
+                    [
+                      ['bg', 'Background'],
+                      ['ink', 'Agents'],
+                      ['accent', 'Accent'],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <div key={key}>
+                      <label className={labelCls}>{label}</label>
+                      <div className="flex items-center gap-2">
                         <input
-                          type="range"
-                          min={spec.min}
-                          max={spec.max}
-                          step={spec.step}
-                          value={fxParams[spec.key]}
-                          onChange={(e) => setThemeParams({ ...themeParams, [spec.key]: Number(e.target.value) })}
-                          className="flex-1 min-w-0"
+                          type="color"
+                          value={isHex(palette[key]) && palette[key].length === 7 ? palette[key] : '#000000'}
+                          onChange={(e) => setPalette({ ...palette, [key]: e.target.value })}
+                          className="w-9 h-9 bg-transparent border-0 cursor-pointer shrink-0"
                         />
-                        <span className="w-10 text-right">{fxParams[spec.key]}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setThemeParams({})}
-                      className="text-[10px] font-bold px-3 py-1.5 rounded border border-white/15 text-white/60 hover:text-white"
-                    >
-                      RESET EFFECT VALUES
-                    </button>
-                    <span className="text-[10px] text-white/30">Saved with the edition.</span>
-                  </div>
+                        <input value={palette[key]} onChange={(e) => setPalette({ ...palette, [key]: e.target.value })} className={inputCls} />
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => choosePreset(themePreset)}
+                    className="text-[10px] font-bold px-3 py-1.5 rounded border border-white/15 text-white/60 hover:text-white"
+                  >
+                    RESET TO PRESET
+                  </button>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-[10px] text-white/40">
-                    {themePreset ? 'No post-effect for this preset yet: the site shows the plain plexus in these colours.' : 'Choose a preset to see its effect.'}
-                  </p>
-              <div className="rounded-lg border border-white/10 overflow-hidden" style={{ background: palette.bg }}>
-                <svg viewBox="0 0 320 110" className="w-full h-28">
-                  {[
-                    [30, 30, 90, 70],
-                    [90, 70, 150, 25],
-                    [150, 25, 215, 80],
-                    [215, 80, 285, 35],
-                    [90, 70, 215, 80],
-                  ].map(([x1, y1, x2, y2], i) => (
-                    <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={palette.ink} strokeOpacity={0.55} />
-                  ))}
-                  {[
-                    [30, 30, 3],
-                    [90, 70, 5],
-                    [150, 25, 4],
-                    [215, 80, 6],
-                    [285, 35, 3],
-                  ].map(([cx, cy, r], i) => (
-                    <circle key={i} cx={cx} cy={cy} r={r} fill={palette.ink} />
-                  ))}
-                  <line x1="160" y1="55" x2="150" y2="25" stroke={palette.accent} strokeOpacity={0.7} />
-                  <line x1="160" y1="55" x2="215" y2="80" stroke={palette.accent} strokeOpacity={0.7} />
-                  <circle cx="160" cy="55" r="3" fill={palette.accent} />
-                </svg>
               </div>
-                </div>
-              )}
             </div>
           )}
 

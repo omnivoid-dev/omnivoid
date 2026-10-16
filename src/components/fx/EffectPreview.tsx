@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FxRenderer } from '@/lib/fx/renderer';
 import type { FxEffect, FxParams } from '@/lib/fx/presets';
 import { hexToRgb } from '@/lib/themes';
+import { MiniPlexus } from '@/lib/fx/miniPlexus';
 
 interface EffectPreviewProps {
   effect: FxEffect;
@@ -15,61 +16,11 @@ interface EffectPreviewProps {
 
 const rgb = (hex: string) => hexToRgb(hex).map((c) => c / 255);
 
-/** A small self-contained plexus (agents + connecting lines) to feed the effect, like the site's own. */
-class MiniPlexus {
-  private agents: { x: number; y: number; vx: number; vy: number }[];
-
-  constructor(private w: number, private h: number, count = 30) {
-    this.agents = Array.from({ length: count }, () => ({
-      x: Math.random() * w,
-      y: Math.random() * h,
-      vx: Math.random() - 0.5,
-      vy: Math.random() - 0.5,
-    }));
-  }
-
-  step() {
-    for (const a of this.agents) {
-      a.x += a.vx * 0.7;
-      a.y += a.vy * 0.7;
-      if (a.x < 0 || a.x > this.w) a.vx *= -1;
-      if (a.y < 0 || a.y > this.h) a.vy *= -1;
-    }
-  }
-
-  draw(ctx: CanvasRenderingContext2D) {
-    ctx.clearRect(0, 0, this.w, this.h);
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#ffffff';
-    const reach = Math.min(this.w, this.h) * 0.55;
-    for (let i = 0; i < this.agents.length; i++) {
-      for (let j = i + 1; j < this.agents.length; j++) {
-        const a = this.agents[i];
-        const b = this.agents[j];
-        const d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (d < reach) {
-          ctx.globalAlpha = 1 - d / reach;
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.stroke();
-        }
-      }
-    }
-    ctx.globalAlpha = 1;
-    for (const a of this.agents) {
-      ctx.beginPath();
-      ctx.arc(a.x, a.y, 2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-}
-
 /**
  * Live preview of a post effect at true pixel size, using the same renderer as the site.
  * Move the pointer over it to see the cursor interaction; the beat is simulated (120 BPM).
  */
-export function EffectPreview({ effect, palette, params, width = 420, height = 236 }: EffectPreviewProps) {
+export function EffectPreview({ effect, palette, params, width = 640, height = 360 }: EffectPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [beat, setBeat] = useState(true);
@@ -155,7 +106,7 @@ export function EffectPreview({ effect, palette, params, width = 420, height = 2
     <div className="space-y-2">
       <div
         className="relative rounded-lg border border-white/10 overflow-hidden bg-black"
-        style={{ width, height, maxWidth: '100%' }}
+        style={{ width, maxWidth: '100%', aspectRatio: `${width} / ${height}` }}
         onPointerMove={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
           live.current.mouse = [(e.clientX - r.left) / r.width, 1 - (e.clientY - r.top) / r.height];
@@ -168,7 +119,7 @@ export function EffectPreview({ effect, palette, params, width = 420, height = 2
         {error ? (
           <div className="absolute inset-0 flex items-center justify-center text-[10px] text-red-400 p-4 text-center">{error}</div>
         ) : (
-          <canvas ref={canvasRef} style={{ width, height, maxWidth: '100%', imageRendering: 'pixelated' }} />
+          <canvas ref={canvasRef} style={{ width: '100%', height: '100%', imageRendering: 'pixelated' }} />
         )}
       </div>
       <label className="flex items-center gap-2 text-[10px] text-white/50 cursor-pointer">
