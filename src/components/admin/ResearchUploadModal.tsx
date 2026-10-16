@@ -136,8 +136,9 @@ export default function ResearchUploadModal({ editions, initialData, onClose, on
           />
 
           <div>
-            <label className={labelCls}>Title *</label>
+            <label className={labelCls}>Display name *</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} required className={inputCls} />
+            <p className="text-[10px] text-white/30 mt-1">What visitors see on the site. The PDF file keeps its own file name{initialData?.fileName ? ` (${initialData.fileName})` : ''}.</p>
           </div>
 
           <div>

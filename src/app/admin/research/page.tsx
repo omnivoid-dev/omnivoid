@@ -73,6 +73,21 @@ export default function ResearchPage() {
     return sortList(list, sort, (i) => i.title, (i) => (i.editionId ? editionDates.get(i.editionId) : null) ?? toTime(i.createdAt));
   }, [docs, editionFilter, search, sort, editionDates]);
 
+  const rename = async (doc: ResearchDoc, title: string) => {
+    const next = title.trim();
+    if (!next || next === doc.title) return;
+    setDocs((d) => d.map((x) => (x.id === doc.id ? { ...x, title: next } : x)));
+    const res = await fetch(`/api/admin/documents/${doc.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: next }),
+    });
+    if (!(await res.json().catch(() => ({}))).success) {
+      alert('Could not rename. Please try again.');
+      fetchData();
+    }
+  };
+
   const handleDelete = async (doc: ResearchDoc) => {
     if (!confirm(`Delete "${doc.title}"?`)) return;
     const res = await fetch(`/api/admin/documents/${doc.id}`, { method: 'DELETE' });
@@ -115,7 +130,25 @@ export default function ResearchPage() {
         isLoading={isLoading}
         emptyMessage="No research papers yet."
         columns={[
-          { header: 'Title', accessor: 'title' },
+          {
+            header: 'Display name',
+            accessor: (d) => (
+              <input
+                key={d.id + d.title}
+                defaultValue={d.title}
+                title="Click to rename; press Enter or click away to save"
+                onBlur={(e) => rename(d, e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur();
+                  if (e.key === 'Escape') {
+                    e.currentTarget.value = d.title;
+                    e.currentTarget.blur();
+                  }
+                }}
+                className="w-full min-w-[220px] bg-transparent border border-transparent hover:border-[#333] focus:border-[#99ccff]/50 focus:bg-[#111] rounded px-2 py-1 text-sm text-white outline-none"
+              />
+            ),
+          },
           { header: 'File', accessor: (d) => <span className="text-xs text-white/50 font-mono">{d.fileName || '—'}</span> },
           { header: 'Edition', accessor: (d) => <span className="text-xs text-white/50">{d.edition?.name || '—'}</span> },
           { header: 'Order', accessor: 'sortOrder' },
