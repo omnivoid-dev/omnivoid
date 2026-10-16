@@ -21,6 +21,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: link });
   } catch (error) {
+    console.error('[api] Failed to fetch link:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch link' }, { status: 500 });
   }
 }
@@ -41,6 +42,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, data: link, message: 'Link updated successfully' });
   } catch (error) {
+    console.error('[api] Failed to update link:', error);
     return NextResponse.json({ success: false, error: 'Failed to update link' }, { status: 500 });
   }
 }
@@ -56,6 +58,7 @@ export async function DELETE(
     await prisma.link.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true, message: 'Link deleted successfully' });
   } catch (error) {
+    console.error('[api] Failed to delete link:', error);
     return NextResponse.json({ success: false, error: 'Failed to delete link' }, { status: 500 });
   }
 }

@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const meta = await res.json();
     return NextResponse.json({ success: true, data: { title: meta.title, author: meta.author_name, youtubeId: id } });
   } catch (error: any) {
+    console.error('[api] Could not fetch video title:', error);
     return NextResponse.json({ success: false, error: 'Could not fetch video title', details: error?.message }, { status: 502 });
   }
 }

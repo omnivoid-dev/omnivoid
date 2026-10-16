@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const settings = await prisma.siteSettings.findMany();
     return NextResponse.json({ success: true, data: settings });
   } catch (error) {
+    console.error('[api] Failed to fetch settings:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch settings' }, { status: 500 });
   }
 }
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
     await deleteIfUnreferenced(pathsInValue(before?.value));
     return NextResponse.json({ success: true, data: setting, message: 'Setting saved successfully' });
   } catch (error) {
+    console.error('[api] Failed to save setting:', error);
     return NextResponse.json({ success: false, error: 'Failed to save setting' }, { status: 500 });
   }
 }

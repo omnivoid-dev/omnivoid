@@ -17,6 +17,16 @@ export interface VerifyAdminResult {
  * Checks for a valid user and that user.app_metadata.role === 'admin'
  */
 export async function verifyAdminToken(request?: Request): Promise<VerifyAdminResult> {
+  const started = Date.now();
+  try {
+    return await verifyAdmin(request);
+  } finally {
+    const ms = Date.now() - started;
+    if (ms >= 1000) console.warn(`[auth] slow admin verification: ${ms}ms`);
+  }
+}
+
+async function verifyAdmin(request?: Request): Promise<VerifyAdminResult> {
   try {
     // 1. Check Authorization Bearer token header if present
     const authHeader = request?.headers.get('Authorization');

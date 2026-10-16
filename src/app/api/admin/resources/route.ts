@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: resources });
   } catch (error) {
+    console.error('[api] Failed to fetch resources:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch resources' }, { status: 500 });
   }
 }
@@ -62,6 +63,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: resource, message: 'Resource created successfully' });
   } catch (error) {
+    console.error('[api] Failed to create resource:', error);
     return NextResponse.json({ success: false, error: 'Failed to create resource' }, { status: 500 });
   }
 }

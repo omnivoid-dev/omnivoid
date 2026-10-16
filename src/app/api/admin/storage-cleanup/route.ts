@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       data: { count: orphans.length, bytes: orphans.reduce((n, o) => n + o.size, 0), files: orphans },
     });
   } catch (error: any) {
+    console.error('[api] Scan failed:', error);
     return NextResponse.json({ success: false, error: 'Scan failed', details: error?.message }, { status: 500 });
   }
 }
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
   try {
     return NextResponse.json({ success: true, data: await purgeOrphans() });
   } catch (error: any) {
+    console.error('[api] Purge failed:', error);
     return NextResponse.json({ success: false, error: 'Purge failed', details: error?.message }, { status: 500 });
   }
 }

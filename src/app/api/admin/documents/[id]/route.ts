@@ -22,6 +22,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: document });
   } catch (error) {
+    console.error('[api] Failed to fetch document:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch document' }, { status: 500 });
   }
 }
@@ -45,6 +46,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, data: document, message: 'Document updated successfully' });
   } catch (error) {
+    console.error('[api] Failed to update document:', error);
     return NextResponse.json({ success: false, error: 'Failed to update document' }, { status: 500 });
   }
 }
@@ -62,6 +64,7 @@ export async function DELETE(
     await deleteIfUnreferenced([before?.fileUrl, before?.thumbnailUrl]);
     return NextResponse.json({ success: true, message: 'Document deleted successfully' });
   } catch (error) {
+    console.error('[api] Failed to delete document:', error);
     return NextResponse.json({ success: false, error: 'Failed to delete document' }, { status: 500 });
   }
 }

@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json({ success: true, data: performers });
   } catch (error) {
+    console.error('[api] Failed to fetch performers:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch performers' }, { status: 500 });
   }
 }

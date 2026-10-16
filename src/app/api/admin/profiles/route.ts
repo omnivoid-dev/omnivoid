@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json({ success: true, data });
   } catch (error) {
+    console.error('[api] Failed to fetch profiles:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch profiles' }, { status: 500 });
   }
 }

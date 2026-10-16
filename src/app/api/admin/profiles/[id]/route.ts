@@ -33,6 +33,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     await deleteIfUnreferenced([before.imageUrl]);
     return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {
+    console.error('[api] Failed to update profile:', error);
     return NextResponse.json({ success: false, error: 'Failed to update profile', details: error?.message }, { status: 500 });
   }
 }
@@ -47,6 +48,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     await deleteIfUnreferenced([before?.imageUrl]);
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('[api] Failed to delete profile:', error);
     return NextResponse.json({ success: false, error: 'Failed to delete profile' }, { status: 500 });
   }
 }

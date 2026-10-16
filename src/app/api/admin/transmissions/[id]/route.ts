@@ -23,6 +23,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const updated = await prisma.transmission.update({ where: { id: params.id }, data });
     return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {
+    console.error('[api] Failed to update transmission:', error);
     return NextResponse.json({ success: false, error: 'Failed to update transmission', details: error?.message }, { status: 500 });
   }
 }
@@ -35,6 +36,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     await prisma.transmission.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('[api] Failed to delete transmission:', error);
     return NextResponse.json({ success: false, error: 'Failed to delete transmission' }, { status: 500 });
   }
 }

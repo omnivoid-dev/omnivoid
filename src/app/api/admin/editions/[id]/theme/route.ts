@@ -34,6 +34,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     });
     return NextResponse.json({ success: true, data: saved.themeColors });
   } catch (error: any) {
+    console.error('[api] Failed to save theme:', error);
     return NextResponse.json({ success: false, error: 'Failed to save theme', details: error?.message }, { status: 500 });
   }
 }

@@ -24,6 +24,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: edition });
   } catch (error) {
+    console.error('[api] Failed to fetch edition:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch edition' }, { status: 500 });
   }
 }
@@ -59,6 +60,7 @@ export async function DELETE(
     await deleteIfUnreferenced([before?.posterUrl, before?.workshopPosterUrl]);
     return NextResponse.json({ success: true, message: 'Edition deleted successfully' });
   } catch (error) {
+    console.error('[api] Failed to delete edition:', error);
     return NextResponse.json({ success: false, error: 'Failed to delete edition' }, { status: 500 });
   }
 }

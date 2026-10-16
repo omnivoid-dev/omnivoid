@@ -20,6 +20,7 @@ export async function GET() {
     });
     return NextResponse.json({ success: true, data });
   } catch (error) {
+    console.error('[api] Failed to fetch transmissions:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch transmissions' }, { status: 500 });
   }
 }
