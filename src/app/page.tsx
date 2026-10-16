@@ -10,7 +10,9 @@ import { StartScreen } from '@/components/StartScreen';
 import { AgentSystem } from '@/components/AgentSystem';
 import { ThreeCanvas } from '@/components/ThreeCanvas';
 import { useAudioAnalyzer } from '@/hooks/useAudioAnalyzer';
-import { AudioPlayerWindow, AudioTrack } from '@/components/AudioPlayerWindow';
+import { useAudioPlayer, type AudioTrack } from '@/hooks/useAudioPlayer';
+import { AudioPlayer, type PlayerMode, type PlaylistInfo } from '@/components/audio/AudioPlayer';
+import { TaskbarPlayer } from '@/components/audio/TaskbarPlayer';
 import { AgentOverlay } from '@/components/AgentOverlay';
 import { TintedImage } from '@/components/TintedImage';
 import { DEFAULT_LOGO_URL, LOGO_ASPECT, MENU_ICON_SLOTS, iconUrlFor, menuLabelFor, resolveBranding, type SiteBranding } from '@/lib/branding';
@@ -45,6 +47,7 @@ interface ContentStructure {
   links: ContentItem[];
   documents: ContentItem[];
   resources: any[];
+  playlists?: { id: string; name: string; description?: string | null; trackIds: string[] }[];
   radioShows?: PublicRadioShow[];
   profiles?: PublicProfile[];
   branding?: SiteBranding;
@@ -99,9 +102,14 @@ export default function Home() {
   const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(null);
 
   // Audio & 3D Visualizer state
-  const [isAudioPlayerOpen, setIsAudioPlayerOpen] = useState(false);
-  const [currentTrack, setCurrentTrack] = useState<AudioTrack | null>(null);
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  // The player window is hidden by default; hiding it never stops the music (the engine lives here)
+  const [playerMode, setPlayerMode] = useState<PlayerMode>('hidden');
+  const lastPlayerMode = useRef<Exclude<PlayerMode, 'hidden'>>('compact');
+  const openPlayer = (mode: Exclude<PlayerMode, 'hidden'> = lastPlayerMode.current) => setPlayerMode(mode);
+  const changePlayerMode = (mode: PlayerMode) => {
+    if (mode !== 'hidden') lastPlayerMode.current = mode;
+    setPlayerMode(mode);
+  };
 
   const [showStarfield, setShowStarfield] = useState(false);
   // Post-effect layer (dither etc.): user toggle, and whether it is actually drawing
@@ -109,6 +117,9 @@ export default function Home() {
   const [fxActive, setFxActive] = useState(false);
 
   const { connectAudioElement, getAudioData } = useAudioAnalyzer();
+  const player = useAudioPlayer(connectAudioElement);
+  const currentTrack = player.current;
+  const isPlayingAudio = player.isPlaying;
 
   const agentSystemRef = useRef<AgentSystem | null>(null);
 
@@ -192,20 +203,23 @@ export default function Home() {
   }, []);
 
   // Collect audio tracks from database resources, plus the built-in demo track
-  const dbTracks: AudioTrack[] = (content?.resources || [])
-    .filter(r => (r.type === 'AUDIO' || r.type === 'audio') && (r.editionId === selectedEditionId || !selectedEditionId))
-    .map(r => ({
-      id: r.id,
-      title: r.title,
-      artist:
-        content?.editions.flatMap(e => e.performers).find(p => p.id === r.performerId)?.name ||
-        r.metadata?.artist ||
-        'OMNIVOID AUDIO LABS',
-      url: r.url || r.filePath || '',
-      duration: r.metadata?.duration,
-      editionName: content?.editions.find(e => e.id === r.editionId)?.name,
-    }));
-  const audioTracks: AudioTrack[] = dbTracks;
+  // Every active audio track, with its edition and performer so the player can filter by them
+  const audioTracks: AudioTrack[] = (content?.resources || [])
+    .filter((r) => (r.type === 'AUDIO' || r.type === 'audio') && r.path)
+    .map((r) => {
+      const edition = content?.editions.find((e) => e.id === r.editionId);
+      return {
+        id: r.id,
+        title: r.title,
+        artist: edition?.performers.find((p) => p.id === r.performerId)?.name || r.metadata?.artist || 'OMNIVOID AUDIO LABS',
+        url: r.path,
+        duration: r.metadata?.duration,
+        editionId: r.editionId,
+        editionName: edition?.name,
+        performerId: r.performerId,
+      };
+    });
+  const playlists: PlaylistInfo[] = (content?.playlists || []).map((p) => ({ id: p.id, name: p.name, trackIds: p.trackIds }));
 
   const profiles = content?.profiles || [];
 
@@ -461,15 +475,16 @@ export default function Home() {
         <div key={`${activeSection}:${profileFocus ?? ''}`}>{renderSection(activeSection)}</div>
       </WindowShell>
 
-      {/* Audio Player Window */}
-      <AudioPlayerWindow
+      {/* Audio engine: always mounted so the music survives hiding the player */}
+      <audio ref={player.audioRef} {...player.audioProps} />
+
+      <AudioPlayer
+        engine={player}
+        mode={playerMode}
+        onModeChange={changePlayerMode}
         tracks={audioTracks}
-        isOpen={isAudioPlayerOpen}
-        onClose={() => setIsAudioPlayerOpen(false)}
-        connectAudioElement={connectAudioElement}
+        playlists={playlists}
         getAudioData={getAudioData}
-        onTrackChange={setCurrentTrack}
-        onPlaybackStateChange={setIsPlayingAudio}
       />
 
       {/* Taskbar / Footer */}
@@ -482,16 +497,7 @@ export default function Home() {
             <span className="text-sm">▦</span> START
           </button>
           <div className="h-4 w-[1px] bg-white/10" />
-          <button
-            onClick={() => setIsAudioPlayerOpen(!isAudioPlayerOpen)}
-            className={`flex items-center gap-2 text-[10px] font-mono tracking-widest px-3 py-1 rounded transition-all border ${
-              isAudioPlayerOpen 
-                ? 'bg-[#99ccff]/20 text-[#99ccff] border-[#99ccff]/40' 
-                : 'bg-white/5 text-white/60 border-white/10 hover:border-[#99ccff]/30 hover:text-white'
-            }`}
-          >
-            <span>🎵</span> AUDIO PLAYER {isPlayingAudio && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />}
-          </button>
+          <TaskbarPlayer engine={player} mode={playerMode} onToggleOpen={() => (playerMode === 'hidden' ? openPlayer() : changePlayerMode('hidden'))} />
           <button
             onClick={() => setShowStarfield(v => !v)}
             className={`flex items-center gap-2 text-[10px] font-mono tracking-widest px-3 py-1 rounded transition-all border ${
@@ -553,7 +559,7 @@ export default function Home() {
             </div>
             <div className="p-2">
               <button
-                onClick={() => { setIsAudioPlayerOpen(true); setIsMenuOpen(false); }}
+                onClick={() => { openPlayer(); setIsMenuOpen(false); }}
                 className="w-full flex items-center gap-3 px-3 py-2 text-[#99ccff] hover:bg-white/5 rounded transition-all text-xs font-mono text-left font-bold"
               >
                 <span className="text-lg">🎧</span> AUDIO STREAM PLAYER
