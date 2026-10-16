@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   authors: [{ name: 'OMNIVOID LABS' }],
   openGraph: {
     type: 'website',
-    url: 'https://omnivoidlabs.com/',
+    url: `${SITE_URL}/`,
     title: 'OMNIVOID LABS - Experimental Sound & Visual Art Platform',
     description: 'Explore the intersection of sound science, technology, and consciousness through immersive audio-visual experiences. Discover research papers, live transmissions, and experimental art.',
     images: [{ url: '/share-image.png', width: 1200, height: 630, alt: 'OMNIVOID LABS' }],
