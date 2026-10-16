@@ -9,12 +9,13 @@ interface ExportVideoButtonProps {
   palette: { bg: string; ink: string; accent: string };
   params: FxParams;
   filename: string;
+  bpm?: number;
 }
 
 const LENGTHS = [5, 10, 15, 30];
 
 /** Renders the current theme to a 1920x1080 MP4 for promotional use and downloads it. */
-export function ExportVideoButton({ effect, palette, params, filename }: ExportVideoButtonProps) {
+export function ExportVideoButton({ effect, palette, params, filename, bpm }: ExportVideoButtonProps) {
   const [seconds, setSeconds] = useState(10);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +30,7 @@ export function ExportVideoButton({ effect, palette, params, filename }: ExportV
     setProgress(0);
     abort.current = new AbortController();
     try {
-      const blob = await exportThemeVideo({ effect, palette, params, seconds, onProgress: setProgress, signal: abort.current.signal });
+      const blob = await exportThemeVideo({ effect, palette, params, seconds, bpm, onProgress: setProgress, signal: abort.current.signal });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

@@ -84,6 +84,7 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
   const [themePreset, setThemePreset] = useState<string>(initialData?.themeColors?.preset || '');
   const [palette, setPalette] = useState<ThemePalette>(initialTheme?.palette || NEUTRAL_THEME);
 
+  const [bpm, setBpm] = useState(120); // preview + MP4 export only; not saved
   const [themeParams, setThemeParams] = useState<Record<string, number>>(initialTheme?.params || {});
 
   const choosePreset = (id: string) => {
@@ -396,7 +397,7 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
                       <div className="text-[10px] font-bold text-[#99ccff] tracking-widest">
                         {FX_SPECS[fxEffect].label.toUpperCase()} EFFECT (live preview)
                       </div>
-                      <EffectPreview effect={fxEffect} palette={palette} params={fxParams} />
+                      <EffectPreview effect={fxEffect} palette={palette} params={fxParams} bpm={bpm} onBpmChange={setBpm} />
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
                         {FX_SPECS[fxEffect].params.map((spec) => (
@@ -423,7 +424,7 @@ export default function EditionEditorModal({ initialData, onClose, onSuccess }: 
                         >
                           RESET EFFECT VALUES
                         </button>
-                        <ExportVideoButton effect={fxEffect} palette={palette} params={fxParams} filename={slug || 'theme'} />
+                        <ExportVideoButton effect={fxEffect} palette={palette} params={fxParams} bpm={bpm} filename={slug || 'theme'} />
                       </div>
                       <p className="text-[10px] text-white/30">Effect values are saved with the edition.</p>
                     </>

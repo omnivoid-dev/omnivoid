@@ -10,6 +10,10 @@ import { MiniPlexus } from './miniPlexus';
 import type { FxEffect, FxParams } from './presets';
 import { hexToRgb } from '@/lib/themes';
 
+export const MIN_BPM = 90;
+export const MAX_BPM = 160;
+export const DEFAULT_BPM = 120;
+
 export const EXPORT_WIDTH = 1920;
 export const EXPORT_HEIGHT = 1080;
 
@@ -21,6 +25,8 @@ export interface ExportOptions {
   fps?: number;
   /** Simulate a 120 BPM kick, as the preview does */
   beat?: boolean;
+  /** Beats per minute of the simulated kick */
+  bpm?: number;
   onProgress?: (fraction: number) => void;
   signal?: AbortSignal;
 }
@@ -32,7 +38,7 @@ export function canExportVideo(): boolean {
 const rgb = (hex: string) => hexToRgb(hex).map((c) => c / 255);
 
 export async function exportThemeVideo(opts: ExportOptions): Promise<Blob> {
-  const { effect, palette, params, seconds, beat = true, onProgress, signal } = opts;
+  const { effect, palette, params, seconds, beat = true, bpm = DEFAULT_BPM, onProgress, signal } = opts;
   const fps = opts.fps ?? 30;
   const total = Math.round(seconds * fps);
 
@@ -88,7 +94,7 @@ export async function exportThemeVideo(opts: ExportOptions): Promise<Blob> {
       plexus.step(60 / fps);
       plexus.draw(sourceCtx);
 
-      const pulse = beat ? Math.pow(Math.max(0, Math.cos(t * Math.PI * 2 * 2)), 6) * 0.85 : 0;
+      const pulse = beat ? Math.pow(Math.max(0, Math.cos(t * Math.PI * 2 * (bpm / 60))), 6) * 0.85 : 0;
       renderer.resize(EXPORT_WIDTH, EXPORT_HEIGHT, cell);
       renderer.draw({
         now: t * 1000,

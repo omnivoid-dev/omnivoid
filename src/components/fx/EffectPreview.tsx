@@ -5,6 +5,7 @@ import { FxRenderer } from '@/lib/fx/renderer';
 import type { FxEffect, FxParams } from '@/lib/fx/presets';
 import { hexToRgb } from '@/lib/themes';
 import { MiniPlexus } from '@/lib/fx/miniPlexus';
+import { DEFAULT_BPM, MAX_BPM, MIN_BPM } from '@/lib/fx/exportVideo';
 
 interface EffectPreviewProps {
   effect: FxEffect;
@@ -12,15 +13,18 @@ interface EffectPreviewProps {
   params: FxParams;
   width?: number;
   height?: number;
+  /** Simulated beat speed; controlled by the parent so exports use the same value */
+  bpm?: number;
+  onBpmChange?: (bpm: number) => void;
 }
 
 const rgb = (hex: string) => hexToRgb(hex).map((c) => c / 255);
 
 /**
  * Live preview of a post effect at true pixel size, using the same renderer as the site.
- * Move the pointer over it to see the cursor interaction; the beat is simulated (120 BPM).
+ * Move the pointer over it to see the cursor interaction; the beat is simulated (adjustable BPM).
  */
-export function EffectPreview({ effect, palette, params, width = 640, height = 360 }: EffectPreviewProps) {
+export function EffectPreview({ effect, palette, params, width = 640, height = 360, bpm = DEFAULT_BPM, onBpmChange }: EffectPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [beat, setBeat] = useState(true);
@@ -29,12 +33,14 @@ export function EffectPreview({ effect, palette, params, width = 640, height = 3
     params,
     palette,
     beat,
+    bpm,
     mouse: [0.5, 0.5],
     mouseActive: false,
   });
   live.current.params = params;
   live.current.palette = palette;
   live.current.beat = beat;
+  live.current.bpm = bpm;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -73,7 +79,7 @@ export function EffectPreview({ effect, palette, params, width = 640, height = 3
 
       const t = (now - start) / 1000;
       // A synthetic 120 BPM kick: sharp attack, quick decay
-      const pulse = l.beat ? Math.pow(Math.max(0, Math.cos(t * Math.PI * 2 * 2)), 6) * 0.85 : 0;
+      const pulse = l.beat ? Math.pow(Math.max(0, Math.cos(t * Math.PI * 2 * (l.bpm / 60))), 6) * 0.85 : 0;
 
       renderer.resize(width, height, l.params.cell || 2);
       renderer.draw({
@@ -122,10 +128,28 @@ export function EffectPreview({ effect, palette, params, width = 640, height = 3
           <canvas ref={canvasRef} style={{ width: '100%', height: '100%', imageRendering: 'pixelated' }} />
         )}
       </div>
-      <label className="flex items-center gap-2 text-[10px] text-white/50 cursor-pointer">
-        <input type="checkbox" checked={beat} onChange={(e) => setBeat(e.target.checked)} className="accent-[#99ccff]" />
-        Simulate a 120 BPM beat
-      </label>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] text-white/50">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={beat} onChange={(e) => setBeat(e.target.checked)} className="accent-[#99ccff]" />
+          Simulate a beat
+        </label>
+        {onBpmChange && (
+          <label className={`flex items-center gap-2 ${beat ? '' : 'opacity-40'}`}>
+            <span>BPM</span>
+            <input
+              type="range"
+              min={MIN_BPM}
+              max={MAX_BPM}
+              step={1}
+              value={bpm}
+              disabled={!beat}
+              onChange={(e) => onBpmChange(Number(e.target.value))}
+              className="w-40"
+            />
+            <span className="w-8 text-white/80">{bpm}</span>
+          </label>
+        )}
+      </div>
     </div>
   );
 }
