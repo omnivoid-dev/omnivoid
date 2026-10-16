@@ -19,6 +19,8 @@ interface Props {
   performers: { id: string; name: string }[];
 }
 
+const EVENT_ONLY = '__event__';
+
 const fieldCls = 'bg-[#111] border border-[#333] rounded px-2 py-1 text-[11px] text-white outline-none focus:border-[#99ccff] w-full';
 
 /**
@@ -67,7 +69,7 @@ export default function EditionGalleryTab({ editionId, performers }: Props) {
             title: file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Photo',
             url: img.publicUrl,
             thumbnailUrl: img.publicUrl,
-            performerId: performer || null,
+            performerId: performer && performer !== EVENT_ONLY ? performer : null,
           }),
         });
         const data = await res.json();
@@ -103,7 +105,7 @@ export default function EditionGalleryTab({ editionId, performers }: Props) {
   };
 
   const shown = useMemo(() => {
-    const filtered = rows.filter((r) => (!performer || r.performerId === performer) && matchesSearch(search, r.title));
+    const filtered = rows.filter((r) => (!performer || (performer === EVENT_ONLY ? !r.performerId : r.performerId === performer)) && matchesSearch(search, r.title));
     return sortList(filtered, sort, (r) => r.title, (r) => toTime(r.createdAt));
   }, [rows, performer, search, sort]);
 
@@ -111,8 +113,8 @@ export default function EditionGalleryTab({ editionId, performers }: Props) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-[10px] text-white/40 max-w-md">
-          Photos from this edition. They are converted to WebP, saved straight away, and appear in the Gallery on the site. Tag a photo with a performer to
-          filter by them.
+          Photos from this edition. They are converted to WebP, saved straight away, and appear in the Gallery on the site. Tagging a performer is optional: leave it as an event photo for crowd,
+          venue and general shots.
         </p>
         <label className="text-[10px] font-bold px-3 py-1.5 rounded border border-[#99ccff]/30 text-[#99ccff] bg-[#99ccff]/10 hover:bg-[#99ccff]/20 cursor-pointer">
           {busy ? 'UPLOADING...' : '⬆ ADD PHOTOS'}
@@ -135,7 +137,7 @@ export default function EditionGalleryTab({ editionId, performers }: Props) {
       <ListControls
         search={search}
         onSearch={setSearch}
-        performers={performers.map((p) => ({ value: p.id, label: p.name }))}
+        performers={[{ value: EVENT_ONLY, label: 'Event photos (no performer)' }, ...performers.map((p) => ({ value: p.id, label: p.name }))]}
         performer={performer}
         onPerformer={setPerformer}
         sort={sort}
@@ -143,7 +145,7 @@ export default function EditionGalleryTab({ editionId, performers }: Props) {
         shown={shown.length}
         total={rows.length}
       />
-      {performer && <p className="text-[10px] text-white/30">New uploads are tagged with the performer selected in the filter.</p>}
+      {performer && performer !== EVENT_ONLY && <p className="text-[10px] text-white/30">New uploads are tagged with the performer selected in the filter.</p>}
 
       {loading ? (
         <p className="text-xs text-white/30">Loading...</p>
@@ -176,7 +178,7 @@ export default function EditionGalleryTab({ editionId, performers }: Props) {
                   onChange={(e) => patch(r.id, { performerId: e.target.value || null })}
                   aria-label="Performer"
                 >
-                  <option value="">No performer</option>
+                  <option value="">Event photo (no performer)</option>
                   {performers.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}

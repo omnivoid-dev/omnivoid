@@ -84,6 +84,8 @@ export interface GalleryItem {
   performerName?: string | null;
 }
 
+const EVENT_ONLY = '__event__';
+
 export function GallerySection({ items, editions }: { items: GalleryItem[]; editions: { id: string; name: string }[] }) {
   const [edition, setEdition] = useState('');
   const [performer, setPerformer] = useState('');
@@ -94,7 +96,8 @@ export function GallerySection({ items, editions }: { items: GalleryItem[]; edit
   const performers = useMemo(() => {
     const names = new Map<string, string>();
     for (const i of items) if (i.performerName) names.set(i.performerName.trim().toLowerCase(), i.performerName.trim());
-    return [...names.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ value, label }));
+    const named = [...names.entries()].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ value, label }));
+    return items.some((i) => !i.performerName) ? [{ value: EVENT_ONLY, label: 'Event photos' }, ...named] : named;
   }, [items]);
 
   const editionOptions = useMemo(() => {
@@ -106,7 +109,7 @@ export function GallerySection({ items, editions }: { items: GalleryItem[]; edit
     const filtered = items.filter(
       (i) =>
         (!edition || i.editionId === edition) &&
-        (!performer || i.performerName?.trim().toLowerCase() === performer) &&
+        (!performer || (performer === EVENT_ONLY ? !i.performerName : i.performerName?.trim().toLowerCase() === performer)) &&
         matchesSearch(search, i.title, i.editionName, i.performerName)
     );
     return sortList(filtered, sort, (i) => i.title, (i) => toTime(i.eventDate));
