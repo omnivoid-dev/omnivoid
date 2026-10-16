@@ -1,40 +1,36 @@
 /**
- * OMNIVOID LABS - Move the hard-coded "47K - Phase 01" track into the database.
+ * OMNIVOID LABS - Load the 47K Phase tracks (the split-up Edition 001 set) into the database.
  *
- * Uploads public/audio/47K_Phase_01.mp3 to Supabase Storage (audio/), then creates the AUDIO
- * resource for Edition 001 with 47K as the performer, so it shows up in Admin > Audio Player
- * and in the player's playlist for that edition. Safe to re-run: nothing is duplicated.
+ * For each 47K_Phase_NN.mp3 in the folder: re-encode to 128 kbps (needs ffmpeg/ffprobe on PATH),
+ * upload to Supabase Storage (audio/), and create/update an AUDIO resource for Edition 001 with
+ * 47K as the performer, so the tracks show in Admin > Audio Player and in that edition's playlist.
+ * Safe to re-run: existing tracks are updated, never duplicated.
  *
- *   npx tsx --env-file=.env scripts/move-47k-audio-to-db.ts
+ *   npx tsx --env-file=.env scripts/move-47k-audio-to-db.ts "K:/path/to/public/audio"
  */
 
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { promises as fs } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import { createAdminClient } from '../src/lib/supabase/admin';
 import { findOrCreatePerformerProfile } from '../src/lib/profiles';
 
+const run = promisify(execFile);
 const prisma = new PrismaClient();
-const FILE = path.join('public', 'audio', '47K_Phase_01.mp3');
-const STORAGE_PATH = 'audio/47K_Phase_01.mp3';
-const DURATION_SECONDS = 270; // measured with ffprobe: 270.03s
-const TITLE = '47K - Phase 01';
+const KBPS = 128;
 
 async function main() {
+  const dir = process.argv[2];
+  if (!dir) throw new Error('Usage: move-47k-audio-to-db.ts <folder with 47K_Phase_NN.mp3 files>');
+
+  const files = (await fs.readdir(dir)).filter((f) => /^47K_Phase_\d+\.mp3$/i.test(f)).sort();
+  if (!files.length) throw new Error('No 47K_Phase_NN.mp3 files found in ' + dir);
+
   const edition = await prisma.edition.findUnique({ where: { slug: 'edition-001' } });
   if (!edition) throw new Error('Edition 001 (slug edition-001) not found');
-
-  const existing = await prisma.resource.findFirst({ where: { type: 'AUDIO', editionId: edition.id, title: TITLE } });
-  if (existing) {
-    console.log('Already in the database; nothing to do.');
-    return;
-  }
-
-  const bytes = await fs.readFile(FILE);
-  const storage = createAdminClient().storage.from('media');
-  const { error } = await storage.upload(STORAGE_PATH, bytes, { contentType: 'audio/mpeg', upsert: true });
-  if (error) throw new Error(`Upload failed: ${error.message}`);
-  const url = storage.getPublicUrl(STORAGE_PATH).data.publicUrl;
 
   // 47K as a performer of Edition 001, linked to the shared 47K profile
   let performer = await prisma.performer.findFirst({ where: { editionId: edition.id, name: { equals: '47K', mode: 'insensitive' } } });
@@ -45,20 +41,47 @@ async function main() {
     console.log('Added 47K to the Edition 001 roster.');
   }
 
-  await prisma.resource.create({
-    data: {
+  const storage = createAdminClient().storage.from('media');
+  let totalIn = 0;
+  let totalOut = 0;
+
+  for (const file of files) {
+    const n = parseInt(file.match(/Phase_(\d+)/i)![1], 10);
+    const title = `47K - Phase ${String(n).padStart(2, '0')}`;
+    const source = path.join(dir, file);
+
+    const tmp = path.join(os.tmpdir(), `omnivoid_${Date.now()}_${file}`);
+    await run('ffmpeg', ['-v', 'error', '-y', '-i', source, '-codec:a', 'libmp3lame', '-b:a', `${KBPS}k`, '-ar', '44100', '-map_metadata', '-1', tmp]);
+    const { stdout } = await run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', tmp]);
+    const duration = Math.round(parseFloat(stdout.trim()));
+    const bytes = await fs.readFile(tmp);
+    await fs.rm(tmp, { force: true });
+    totalIn += (await fs.stat(source)).size;
+    totalOut += bytes.length;
+
+    const storagePath = `audio/${file}`;
+    const { error } = await storage.upload(storagePath, bytes, { contentType: 'audio/mpeg', upsert: true });
+    if (error) throw new Error(`Upload of ${file} failed: ${error.message}`);
+    const url = storage.getPublicUrl(storagePath).data.publicUrl;
+
+    const data = {
       editionId: edition.id,
       performerId: performer.id,
-      type: 'AUDIO',
-      title: TITLE,
+      type: 'AUDIO' as const,
+      title,
       url,
-      filePath: STORAGE_PATH,
-      metadata: { artist: '47K', duration: DURATION_SECONDS, format: 'mp3', fileSize: bytes.length },
-      sortOrder: 0,
+      filePath: storagePath,
+      metadata: { artist: '47K', duration, format: 'mp3', fileSize: bytes.length },
+      sortOrder: n,
       isActive: true,
-    },
-  });
-  console.log('Created the audio track:', url);
+    };
+    const existing = await prisma.resource.findFirst({ where: { type: 'AUDIO', editionId: edition.id, title } });
+    if (existing) await prisma.resource.update({ where: { id: existing.id }, data });
+    else await prisma.resource.create({ data });
+    console.log(`${existing ? 'Updated' : 'Created'} ${title}  ${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')}  ${(bytes.length / 1048576).toFixed(1)}MB`);
+  }
+
+  console.log(`\n${files.length} tracks. ${(totalIn / 1048576).toFixed(0)}MB -> ${(totalOut / 1048576).toFixed(0)}MB after compression.`);
 }
 
 main()
