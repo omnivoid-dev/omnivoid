@@ -63,8 +63,13 @@ const nextConfig = {
   async headers() {
     // Which sites may show the public pages in an iframe: the client's WordPress site by default.
     // Set EMBED_ALLOWED_ORIGINS in Vercel (space-separated origins) to replace this list.
-    const embedOrigins =
-      (process.env.EMBED_ALLOWED_ORIGINS || '').trim() || 'https://royvillemedia.in https://www.royvillemedia.in';
+    // Accepts spaces or commas between sites, drops repeats and anything that is not an http(s) address,
+    // so a slip in the Vercel value cannot produce a broken header.
+    const configured = (process.env.EMBED_ALLOWED_ORIGINS || '')
+      .split(/[\s,]+/)
+      .map((o) => o.trim().replace(/\/$/, ''))
+      .filter((o) => /^https?:\/\/[^\s;'"]+$/.test(o));
+    const embedOrigins = [...new Set(configured.length ? configured : ['https://royvillemedia.in', 'https://www.royvillemedia.in'])].join(' ');
     const frameAncestors = `frame-ancestors 'self' ${embedOrigins}`;
 
     const common = [
