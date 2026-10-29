@@ -61,10 +61,11 @@ const nextConfig = {
   
   // Headers for security and performance
   async headers() {
-    // Which sites may show the public pages in an iframe. Set EMBED_ALLOWED_ORIGINS in Vercel to restrict it,
-    // e.g. "https://client-site.com https://www.client-site.com". Empty means any site may embed (public pages only).
-    const embedOrigins = (process.env.EMBED_ALLOWED_ORIGINS || '').trim();
-    const frameAncestors = embedOrigins ? `frame-ancestors 'self' ${embedOrigins}` : 'frame-ancestors *';
+    // Which sites may show the public pages in an iframe: the client's WordPress site by default.
+    // Set EMBED_ALLOWED_ORIGINS in Vercel (space-separated origins) to replace this list.
+    const embedOrigins =
+      (process.env.EMBED_ALLOWED_ORIGINS || '').trim() || 'https://royvillemedia.in https://www.royvillemedia.in';
+    const frameAncestors = `frame-ancestors 'self' ${embedOrigins}`;
 
     const common = [
       { key: 'X-Content-Type-Options', value: 'nosniff' },
