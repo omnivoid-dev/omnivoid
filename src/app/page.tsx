@@ -179,7 +179,7 @@ export default function Home() {
 
   useEffect(() => {
     const wanted = initialSectionRef.current;
-    if (wanted && isSplashComplete && content && SECTION_ORDER.includes(wanted)) {
+    if (wanted && isSplashComplete && content && SECTION_ORDER.includes(wanted) && !branding.hiddenSections.includes(wanted)) {
       initialSectionRef.current = null;
       const wantedProfile = initialProfileRef.current;
       initialProfileRef.current = null;
@@ -257,6 +257,7 @@ export default function Home() {
 
   // Sections that currently have something to show
   const visibleSectionIds = SECTION_ORDER.filter((id) => {
+    if (branding.hiddenSections.includes(id)) return false; // switched off in Admin > Branding
     if (id === 'latest') return !!latestEdition;
     const profileSection = PROFILE_SECTIONS[id];
     return profileSection ? profiles.some((p) => p.type === profileSection.type) : true;

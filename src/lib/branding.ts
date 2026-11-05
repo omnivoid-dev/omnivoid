@@ -32,6 +32,8 @@ export interface SiteBranding {
   iconTint: Tint;
   /** Per-section menu names (section id -> label). Missing = built-in name. */
   labels: Record<string, string>;
+  /** Sections switched off in every menu (the START menu, the phone grid and the window's strip). Nothing is deleted. */
+  hiddenSections: string[];
 }
 
 export const BRANDING_KEY = 'siteBranding';
@@ -47,12 +49,16 @@ export const SHARE_DEFAULT_DESCRIPTION =
 
 export const DEFAULT_SHARE: ShareSettings = { title: '', description: '', imageMode: 'auto', imageUrl: null, background: '#050505' };
 
+/** Hidden until the admin saves their own choice. Gallery is off for now; switch it back on in Admin > Branding. */
+export const DEFAULT_HIDDEN_SECTIONS = ['gallery'];
+
 export const DEFAULT_BRANDING: SiteBranding = {
   logo: { url: null, tint: DEFAULT_TINT },
   share: DEFAULT_SHARE,
   icons: {},
   iconTint: DEFAULT_TINT,
   labels: {},
+  hiddenSections: DEFAULT_HIDDEN_SECTIONS,
 };
 
 /** Menu sections that carry an icon, with the built-in image (if the original project had one). */
@@ -88,6 +94,7 @@ export function resolveBranding(stored: unknown): SiteBranding {
     icons: s.icons || {},
     iconTint: tintDefaults(s.iconTint),
     labels: s.labels || {},
+    hiddenSections: Array.isArray(s.hiddenSections) ? s.hiddenSections.filter((x): x is string => typeof x === 'string') : DEFAULT_HIDDEN_SECTIONS,
   };
 }
 

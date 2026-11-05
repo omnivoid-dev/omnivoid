@@ -137,6 +137,10 @@ export default function BrandingManager() {
     else delete labels[id];
     setBranding({ ...branding, labels });
   };
+  const setHidden = (id: string, hidden: boolean) => {
+    const rest = branding.hiddenSections.filter((x) => x !== id);
+    setBranding({ ...branding, hiddenSections: hidden ? [...rest, id] : rest });
+  };
   const setIcon = (id: string, url: string | null) => {
     const icons = { ...branding.icons };
     if (url) icons[id] = url;
@@ -338,14 +342,14 @@ export default function BrandingManager() {
         </div>
 
         <p className="text-[10px] text-white/40">
-          Each card sets one menu entry: type a name to rename it (leave empty for the default shown in grey), or replace its icon.
+          Each card sets one menu entry: type a name to rename it (leave empty for the default shown in grey), replace its icon, or tick HIDE FROM MENU to switch the section off everywhere (nothing is deleted; untick to bring it back).
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {MENU_ICON_SLOTS.map((slot) => {
             const url = iconUrlFor(branding, slot.id);
             return (
-              <div key={slot.id} className="bg-black border border-white/10 rounded-lg p-3 space-y-3 text-center">
+              <div key={slot.id} className={`bg-black border rounded-lg p-3 space-y-3 text-center ${branding.hiddenSections.includes(slot.id) ? 'border-amber-400/30' : 'border-white/10'}`}>
                 <div className="h-16 flex items-center justify-center">
                   {url ? (
                     <TintedImage src={url} tint={branding.iconTint} alt={slot.label} style={{ width: 56, height: 56 }} />
@@ -361,6 +365,15 @@ export default function BrandingManager() {
                   aria-label={`Menu name for ${slot.label}`}
                   className="w-full bg-[#111] border border-[#333] rounded px-2 py-1.5 text-[10px] font-bold tracking-widest text-center text-white placeholder:text-white/30 outline-none focus:border-[#99ccff]"
                 />
+                <label className={`flex items-center justify-center gap-1.5 text-[9px] font-bold tracking-widest cursor-pointer ${branding.hiddenSections.includes(slot.id) ? 'text-amber-300' : 'text-white/40 hover:text-white'}`}>
+                  <input
+                    type="checkbox"
+                    checked={branding.hiddenSections.includes(slot.id)}
+                    onChange={(e) => setHidden(slot.id, e.target.checked)}
+                    className="accent-amber-400"
+                  />
+                  HIDE FROM MENU
+                </label>
                 <div className="flex flex-col gap-1.5 items-center">
                   <UploadButton label="⬆ REPLACE" onUploaded={(u) => setIcon(slot.id, u)} onError={(t) => setMessage({ type: 'error', text: t })} />
                   {branding.icons[slot.id] && (
