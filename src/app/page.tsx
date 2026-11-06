@@ -15,6 +15,8 @@ import { TaskbarPlayer } from '@/components/audio/TaskbarPlayer';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { MobileStart } from '@/components/mobile/MobileStart';
 import { MobileTaskbar } from '@/components/mobile/MobileTaskbar';
+import { ThemePicker, type ThemeOption } from '@/components/ThemePicker';
+import { sortList, toTime } from '@/lib/listView';
 import { TintedImage } from '@/components/TintedImage';
 import { DEFAULT_LOGO_URL, LOGO_ASPECT, MENU_ICON_SLOTS, iconUrlFor, menuLabelFor, resolveBranding, type SiteBranding } from '@/lib/branding';
 import { RitualsWindow } from '@/components/edition/RitualsWindow';
@@ -114,6 +116,7 @@ export default function Home() {
   const [showStarfield, setShowStarfield] = useState(false);
   // Post-effect layer (dither etc.): user toggle, and whether it is actually drawing
   const [fxEnabled, setFxEnabled] = useState(true);
+  const [themePickerOpen, setThemePickerOpen] = useState(false);
   const [fxActive, setFxActive] = useState(false);
 
   const { connectAudioElement, getAudioData } = useAudioAnalyzer();
@@ -163,10 +166,10 @@ export default function Home() {
 
   // Edition theme: the agents crossfade to the edition's ink; the page background follows via CSS
   useEffect(() => {
-    const edition = content?.editions.find((e) => e.id === themeEditionId);
+    const edition = fxEnabled ? content?.editions.find((e) => e.id === themeEditionId) : undefined;
     const palette = resolveTheme(edition?.themeColors)?.palette ?? NEUTRAL_THEME;
     agentSystemRef.current?.setTheme({ ink: palette.ink, accent: palette.accent });
-  }, [content, themeEditionId, isSplashComplete]);
+  }, [content, themeEditionId, fxEnabled, isSplashComplete]);
 
   // Deep link: /?section=rituals opens the window on that section once the site is ready
   const initialSectionRef = useRef<string | null>(null);
@@ -387,8 +390,20 @@ export default function Home() {
 
   const selectedEditionName = content?.editions.find(e => e.id === selectedEditionId)?.name;
 
-  const themeEdition = content?.editions.find((e) => e.id === themeEditionId);
+  // The chosen theme only applies while FX is on; turning FX off returns the plain OMNIVOID look (the choice is kept)
+  const themeEdition = fxEnabled ? content?.editions.find((e) => e.id === themeEditionId) : undefined;
   const activeTheme = resolveTheme(themeEdition?.themeColors);
+
+  // Every edition that has a theme, for the picker
+  const themeOptions: ThemeOption[] = sortList(allEditions, 'date-desc', (e) => e.name, (e) => toTime(e.eventDate)).flatMap((e) => {
+    const t = resolveTheme(e.themeColors);
+    return t ? [{ id: e.id, name: e.name, subtitle: t.label, palette: t.palette }] : [];
+  });
+  const pickTheme = (id: string | null) => {
+    setThemeEditionId(id);
+    setFxEnabled(true);
+    if (isMobile) setThemePickerOpen(false);
+  };
   const palette = activeTheme?.palette ?? NEUTRAL_THEME;
   const fxEffect = fxEnabled ? fxForPreset(activeTheme?.id) : null;
 
@@ -522,26 +537,23 @@ export default function Home() {
             <span>✦</span> STARFIELD {showStarfield ? 'ON' : 'OFF'}
           </button>
           <button
-            onClick={() => setFxEnabled((v) => !v)}
-            title="Edition post-effects (dither, ...)"
-            className={`flex items-center gap-2 text-[10px] font-mono tracking-widest px-3 py-1 rounded transition-all border ${
-              fxEnabled
+            onClick={() => setThemePickerOpen((v) => !v)}
+            title="Choose a theme from the editions, or turn the theme off"
+            aria-expanded={themePickerOpen}
+            className={`flex items-center gap-2 max-w-[300px] text-[10px] font-mono tracking-widest px-3 py-1 rounded transition-all border ${
+              fxEnabled && themeEdition
                 ? 'bg-[#99ccff]/20 text-[#99ccff] border-[#99ccff]/40'
                 : 'bg-white/5 text-white/60 border-white/10 hover:border-[#99ccff]/30 hover:text-white'
             }`}
           >
-            <span>▚</span> FX {fxEnabled ? 'ON' : 'OFF'}
+            {fxEnabled && themeEdition ? (
+              <span className="w-2.5 h-2.5 rounded-full border border-white/30 shrink-0" style={{ background: palette.ink }} />
+            ) : (
+              <span>▚</span>
+            )}
+            <span className="truncate">THEME: {!fxEnabled ? 'OFF' : themeEdition ? themeEdition.name.toUpperCase() : 'NEUTRAL'}</span>
+            <span className="text-[8px] opacity-60">▴</span>
           </button>
-          {themeEdition && activeTheme && (
-            <button
-              onClick={() => setThemeEditionId(null)}
-              title="Return to the neutral OMNIVOID look"
-              className="flex items-center gap-2 text-[10px] font-mono tracking-widest px-3 py-1 rounded border border-white/10 bg-white/5 text-white/70 hover:text-white hover:border-[#99ccff]/40 transition-all"
-            >
-              <span className="w-2.5 h-2.5 rounded-full border border-white/30" style={{ background: palette.ink }} />
-              THEME: {themeEdition.name.toUpperCase()} ✕
-            </button>
-          )}
           <div className="h-4 w-[1px] bg-white/10" />
           <div className="text-[10px] text-white/30 font-mono tracking-widest uppercase">
             {selectedEditionName || 'INITIALIZING...'}
@@ -569,12 +581,27 @@ export default function Home() {
           onTogglePlayer={() => (playerMode === 'hidden' ? openPlayer() : changePlayerMode('hidden'))}
           starfieldOn={showStarfield}
           onToggleStarfield={() => setShowStarfield((v) => !v)}
-          fxOn={fxEnabled}
-          onToggleFx={() => setFxEnabled((v) => !v)}
-          theme={themeEdition && activeTheme ? { name: themeEdition.name, color: palette.ink } : null}
-          onClearTheme={() => setThemeEditionId(null)}
+          themeOpen={themePickerOpen}
+          onToggleTheme={() => setThemePickerOpen((v) => !v)}
+          themeColor={fxEnabled && themeEdition && activeTheme ? palette.ink : null}
         />
       )}
+
+      {/* Theme picker: popover on desktop, bottom sheet on phones */}
+      <AnimatePresence>
+        {themePickerOpen && (
+          <ThemePicker
+            mobile={isMobile}
+            loading={!content}
+            options={themeOptions}
+            activeId={themeEditionId}
+            fxEnabled={fxEnabled}
+            onSelect={pickTheme}
+            onToggleFx={() => setFxEnabled((v) => !v)}
+            onClose={() => setThemePickerOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Start Menu */}
       <AnimatePresence>
